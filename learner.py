@@ -3,26 +3,27 @@ from automata.fa.dfa import DFA
 
 
 class Learner:
-    def __init__(self, teacher, alphabet, max_p_length=1):
+    def __init__(self, teacher, alphabet, max_p_length=0, ce_strategy='expand'):
         self.teacher = teacher
         self.alphabet = sorted(list(alphabet))
         self.query_cache = {}
         self.mq_count = 0
 
+        # --- 反例处理策略 ---
+        # 'expand': 扩展观测表策略 (加所有前缀和后缀)
+        # 'breakpoint': 精确断点策略 (RS 二分查找法)
+        self.ce_strategy = ce_strategy
+
         # --- 增量填表需要的快照 ---
-        self.filled_rows = set()  # <--- [新增] 记录所有已填过表的行 (I ∪ IΣ ∪ ΣI)
+        self.filled_rows = set()
         self.processed_P = set()
         self.processed_S = set()
 
-        self.P = set()
-        # 初始化 P (建议 max_p_length 设为 0 或 1，避免指数爆炸)
-        for length in range(max_p_length + 1):
-            for s in itertools.product(self.alphabet, repeat=length):
-                self.P.add("".join(s))
-
+        self.P = {''}
         self.S = {''}
         self.I = {''}
         self.table = {}
+        self.state_to_rep = {}
 
     def _ask_teacher(self, string):
         if string in self.query_cache:
@@ -127,6 +128,8 @@ class Learner:
             if ext_row not in rows_in_I:
                 # print(f"发现新代数状态: '{ext}' (提拔入 I)")
                 self.I.add(ext)
+                # todo:
+                self.P.add(ext)
                 return False  # 立即跳出，触发 fill_table 补全数据
 
         return True
@@ -359,48 +362,107 @@ class Learner:
 
     # ... [性能报告和统计函数保持不变] ...
 
-    def learn(self, depth):
-        # 初始化所有计时器
+    def learn(self, depth=1):
+        self.P = {''}
+        self.S = {''}
+        self.I = {''}
+
         self.total_start_time = time.perf_counter()
-        self.lstar_pure_time = 0.0  # Learner 内部逻辑（填表、建假设、处理反例）
-        self.monoid_probe_time = 0.0  # 双边探测计算时间
-        self.eq_time = 0.0  # 外部 Oracle (Teacher) 找反例的时间
+        self.lstar_pure_time = 0.0
+        self.monoid_probe_time = 0.0
+        self.eq_time = 0.0
+        self.eq_count = 0
 
         while True:
-            # --- 阶段 1: Learner 内部计算 (填表、闭合检查) ---
-            lstar_start = time.perf_counter()
+            # --- 阶段 1: 填表 & 闭合检查 ---
+            t0 = time.perf_counter()
             self.fill_table()
 
             if not self.is_closed_and_separable():
-                self.lstar_pure_time += (time.perf_counter() - lstar_start)
+                self.lstar_pure_time += (time.perf_counter() - t0)
                 continue
 
+            # 构建假设
             hypothesis = self.build_hypothesis()
-            self.lstar_pure_time += (time.perf_counter() - lstar_start)
+            self.lstar_pure_time += (time.perf_counter() - t0)
 
-            # --- 阶段 2: 外部 EQ 查询 (单独计时，不计入学生时间) ---
-            eq_start = time.perf_counter()
+            # --- 阶段 2: 外部 EQ (Teacher) ---
+            t1 = time.perf_counter()
             counterexample = self.teacher.equivalence_query(hypothesis)
-            self.eq_time += (time.perf_counter() - eq_start)
+            self.eq_time += (time.perf_counter() - t1)
+            self.eq_count += 1
 
-            # --- 阶段 3: 处理反例 (回到 Learner 内部计算) ---
+            # --- 阶段 3: 处理反例 (参数化策略) ---
             if counterexample is not None:
-                lstar_start = time.perf_counter()  # 重新开始记 Lstar 的账
-                print(f"收到反例: '{counterexample}'，正在处理...")
-                for i in range(len(counterexample) + 1):
-                    self.S.add(counterexample[i:])
-                self.lstar_pure_time += (time.perf_counter() - lstar_start)
+                t2 = time.perf_counter()
+
+                # Maler-Pnueli 策略
+                if self.ce_strategy == 'expand':
+                    # print(f"收到反例: '{counterexample}'，执行 [全面扩张观测表] 策略...")
+                    # 策略 A: 直接扩张，加入反例的所有后缀到 S
+                    for k in range(len(counterexample) + 1):
+                        self.S.add(counterexample[k:])
+
+                    # 策略 B: 直接扩张，加入反例的所有前缀到 I 和 P
+                    prefix = ""
+                    for char in counterexample:
+                        prefix += char
+                        self.I.add(prefix)
+                        self.P.add(prefix)
+                # RS策略
+                elif self.ce_strategy == 'breakpoint':
+                    # print(f"收到反例: '{counterexample}'，执行 [精确断点查找] 策略...")
+                    w = counterexample
+                    m = len(w)
+
+                    # 1. 模拟在假设中走一遍，记录轨迹
+                    reps = []
+                    curr = hypothesis.initial_state
+                    reps.append(self.state_to_rep[curr])
+                    for char in w:
+                        curr = hypothesis.transitions[curr][char]
+                        reps.append(self.state_to_rep[curr])
+
+                    low = 0
+                    high = m
+                    Q_low = self._ask_teacher(reps[low] + w[low:])
+                    Q_high = self._ask_teacher(reps[high] + w[high:])
+
+                    # 2. 二分查找找断点
+                    if Q_low != Q_high:
+                        while low + 1 < high:
+                            mid = (low + high) // 2
+                            Q_mid = self._ask_teacher(reps[mid] + w[mid:])
+                            if Q_mid == Q_low:
+                                low = mid
+                            else:
+                                high = mid
+
+                        # 3. 提取精准后缀和前缀
+                        distinguishing_suffix = w[high:]
+                        prefix_to_add = reps[low]
+
+                        self.S.add(distinguishing_suffix)
+                        self.I.add(prefix_to_add)
+                        self.P.add(prefix_to_add)
+                    else:
+                        # Fallback
+                        self.S.add(w)
+                        self.I.add(w)
+                        self.P.add(w)
+
+                self.lstar_pure_time += (time.perf_counter() - t2)
                 continue
 
             # --- 阶段 4: Monoid 双边探测 ---
-            monoid_start = time.perf_counter()
-            consistency_passed = self.ensure_monoid_consistency_doublesided(depth)
-            self.monoid_probe_time += (time.perf_counter() - monoid_start)
+            t3 = time.perf_counter()
+            consistent = self.ensure_monoid_consistency_doublesided(depth)
+            self.monoid_probe_time += (time.perf_counter() - t3)
 
-            if not consistency_passed:
+            if not consistent:
                 continue
 
-            # 结束计时
+            # 完美收官
             self.total_end_time = time.perf_counter()
             self.print_performance_report()
             self.print_final_statistics()
