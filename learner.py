@@ -407,7 +407,7 @@ class Learner:
                     prefix = ""
                     for char in counterexample:
                         prefix += char
-                        self.I.add(prefix)
+                        # self.I.add(prefix)
                         self.P.add(prefix)
                 # RS策略
                 elif self.ce_strategy == 'breakpoint':
@@ -443,12 +443,12 @@ class Learner:
                         prefix_to_add = reps[low]
 
                         self.S.add(distinguishing_suffix)
-                        self.I.add(prefix_to_add)
+                        # self.I.add(prefix_to_add)
                         self.P.add(prefix_to_add)
                     else:
                         # Fallback
                         self.S.add(w)
-                        self.I.add(w)
+                        # self.I.add(w)
                         self.P.add(w)
 
                 self.lstar_pure_time += (time.perf_counter() - t2)

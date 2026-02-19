@@ -7,8 +7,8 @@ from classic_lstar_oracle import ClassicOracle
 
 
 def benchmark(regex_str):
-    # alphabet = {'a', 'b'}
-    alphabet = {'a', 'b','c'}
+    alphabet = {'a', 'b'}
+    # alphabet = {'a', 'b','c'}
     print("\n" + "*" * 65)
     print(f"🎯 正在测试正则: {regex_str}")
     print("*" * 65)
@@ -103,12 +103,12 @@ def generate_cyclic_group_regex(k):
     return regex
 
 if __name__ == "__main__":
-    cyclic_regex = generate_cyclic_group_regex(50)
-    benchmark(cyclic_regex)
+    cyclic_regex = generate_cyclic_group_regex(5)
+    # benchmark(cyclic_regex)
     # 热身测试：简单的结构
-    # benchmark("(b*ab*ab*a)*b*")
+
     # regex = "(a|b)*aab"
-    # regex = "b*(ab*ab*)*"
+
 
     # regular language
     # regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
@@ -119,3 +119,4 @@ if __name__ == "__main__":
     # benchmark("a" * 80 + "b")
     # benchmark("(a|b)*aab")
     # benchmark("b*(ab*ab*)*")
+    benchmark("()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*")
