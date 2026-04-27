@@ -4,10 +4,9 @@ from oracle import Oracle
 from learner import Learner
 from classic_lstar_learner import ClassicLearner
 from classic_lstar_oracle import ClassicOracle
+from learner_debug import LearnerDebug
 
-
-def benchmark(regex_str):
-    alphabet = {'a', 'b'}
+def benchmark(regex_str,debug_mode=False,alphabet = {'a','b'}):
     # alphabet = {'a', 'b','c'}
     print("\n" + "*" * 65)
     print(f"🎯 正在测试正则: {regex_str}")
@@ -40,16 +39,22 @@ def benchmark(regex_str):
 
     total_time_classic = time_lstar_classic + time_conv_classic
 
+
+
+
     # ==========================================
     # 过程 B: 你的改进版一体化算法 (Integrated Learner)
     # ==========================================
     print("\n>> 开始执行: 过程 B [改进版一体化 L* (位图化 + 纵向扩张)]")
     oracle_integrated = Oracle(target_dfa)
 
-    learner_integrated = Learner(oracle_integrated, alphabet, max_p_length=1)
-
+    if debug_mode:
+        print("   [开启 Debug] 将详细记录每次表格的代数分裂轨迹...")
+        learner_integrated = LearnerDebug(oracle_integrated, alphabet)
+    else:
+        learner_integrated = Learner(oracle_integrated, alphabet, max_p_length=1)
     start_b = time.perf_counter()
-    learned_dfa_integrated = learner_integrated.learn(depth=0)
+    result_syntactic_monoid = learner_integrated.learn()
     end_b = time.perf_counter()
     total_time_integrated = end_b - start_b
 
@@ -89,6 +94,15 @@ def benchmark(regex_str):
     else:
         print(f"💡 结论: 朴素基线依然领先，需要继续排查 Python 的循环开销。")
     print("=" * 65 + "\n")
+    # result_syntactic_monoid.show_diagram(path='syntactic_monoid.png')
+
+
+    # 打印 Graphviz DOT 源码
+    # print_acceptor(result_syntactic_monoid)
+
+
+
+
 
 # 循环群语言
 def generate_cyclic_group_regex(k):
@@ -103,20 +117,26 @@ def generate_cyclic_group_regex(k):
     return regex
 
 if __name__ == "__main__":
-    cyclic_regex = generate_cyclic_group_regex(5)
+    cyclic_regex = generate_cyclic_group_regex(50)
     # benchmark(cyclic_regex)
     # 热身测试：简单的结构
-
     # regex = "(a|b)*aab"
-
-
     # regular language
-    # regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
+    regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
     # regex = "aab"
     # regex = "(aa|bbb)*"
+    # regex = "(ab)*"
 
+    # regex = "(a|b)*a"
+    # regex = "(a|b)*aab"
+    # regex = "b*(ab*ab*)*"
+    # regex = "(b*ab*ab*a)*b*"
+    # regex = "a"*10 + "b"
+
+
+    # alphabet = {'a', 'b', 'c'}
+    # regex = "(a|b)*a"
+    # regex = "(a|b|c)*bac(a|b|c)*caca(a|b|c)*cc"
     # regex = "(c|ab|aaca)*(a|c|aba)(aca|b|aa)*(aa|ca|ab)(c|ab|aaca)*|c*"
-    # benchmark("a" * 80 + "b")
-    # benchmark("(a|b)*aab")
-    # benchmark("b*(ab*ab*)*")
-    benchmark("()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*")
+    # benchmark(regex,True,alphabet)
+    benchmark(regex, True)

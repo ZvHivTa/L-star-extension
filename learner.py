@@ -2,8 +2,9 @@ import itertools, time
 from automata.fa.dfa import DFA
 
 
+
 class Learner:
-    def __init__(self, teacher, alphabet, max_p_length=0, ce_strategy='expand'):
+    def __init__(self, teacher, alphabet, max_p_length=0, ce_strategy='breakpoint'):
         self.teacher = teacher
         self.alphabet = sorted(list(alphabet))
         self.query_cache = {}
@@ -45,11 +46,11 @@ class Learner:
         """
         # 1. 构造所有需要存在的行：基(I) + 右扩展 + 左扩展
         right_ext = {i + a for i in self.I for a in self.alphabet}
-        left_ext = {a + i for i in self.I for a in self.alphabet}
+        # left_ext = {a + i for i in self.I for a in self.alphabet}
 
         # all_needed_rows 是当前观测表必须包含的所有行
-        all_needed_rows = self.I | right_ext | left_ext
-
+        # all_needed_rows = self.I | right_ext | left_ext
+        all_needed_rows = self.I | right_ext
         # 2. 计算增量
         # 新出现的行 = 当前需要的行 - 历史填过的行
         new_rows = all_needed_rows - self.filled_rows
@@ -112,10 +113,11 @@ class Learner:
         # 2. 生成所有候选扩展项
         # 我们优先检查短的字符串，这样生成的 I 集合更紧凑
         right_ext = {i + a for i in self.I for a in self.alphabet}
-        left_ext = {a + i for i in self.I for a in self.alphabet}
+        # left_ext = {a + i for i in self.I for a in self.alphabet}
 
         # 合并并排序 (按长度 -> 字典序)
-        all_extensions = sorted(list(right_ext | left_ext), key=lambda x: (len(x), x))
+        # all_extensions = sorted(list(right_ext | left_ext), key=lambda x: (len(x), x))
+        all_extensions = sorted(list(right_ext), key=lambda x: (len(x), x))
 
         for ext in all_extensions:
             if ext in self.I:
@@ -129,7 +131,7 @@ class Learner:
                 # print(f"发现新代数状态: '{ext}' (提拔入 I)")
                 self.I.add(ext)
                 # todo:
-                self.P.add(ext)
+                # self.P.add(ext)
                 return False  # 立即跳出，触发 fill_table 补全数据
 
         return True
@@ -315,54 +317,102 @@ class Learner:
         print(f"Table Cols (P x S)       : {n_cols} (P={len(self.P)}, S={len(self.S)})")
         print("=" * 45 + "\n")
 
-    def ensure_monoid_consistency_doublesided(self, depth=1):
-        """
-        [优化] 批量探测。
-        一次收集所有能发现的冲突，避免反复重填表。
-        """
-        import itertools
-        found_any_conflict = False
+    # def ensure_monoid_consistency_doublesided(self, depth=1):
+    #     """
+    #     [优化] 批量探测。
+    #     一次收集所有能发现的冲突，避免反复重填表。
+    #     """
+    #     import itertools
+    #     found_any_conflict = False
+    #
+    #     all_candidates = list(self.I)
+    #     extensions = {i + a for i in self.I for a in self.alphabet}
+    #     all_candidates.extend(list(extensions - self.I))
+    #     all_candidates.sort(key=lambda x: (len(x), x))
+    #
+    #     groups = {}
+    #     for i in all_candidates:
+    #         r = self.get_row(i)
+    #         if r not in groups: groups[r] = []
+    #         groups[r].append(i)
+    #
+    #     for r, group in groups.items():
+    #         if len(group) < 2: continue
+    #
+    #         base = group[0]
+    #         for other in group[1:]:
+    #             # 探测逻辑
+    #             is_split = False
+    #             for length in range(depth + 1):
+    #                 current_probes = ["".join(s) for s in itertools.product(self.alphabet, repeat=length)]
+    #                 for x in current_probes:
+    #                     for y in current_probes:
+    #                         if self._ask_teacher(x + base + y) != self._ask_teacher(x + other + y):
+    #                             # 发现冲突，记录并标记，但不立即 return
+    #                             if x not in self.P: self.P.add(x)
+    #                             if y not in self.S: self.S.add(y)
+    #                             found_any_conflict = True
+    #                             is_split = True
+    #                             break  # 已经分开了这对 (base, other)，跳出探测
+    #                     if is_split: break
+    #                 if is_split: break
+    #
+    #     if not found_any_conflict:
+    #         # print(f">> [Pass] Depth={depth} 双边探测结束。")
+    #         pass
+    #     return not found_any_conflict
 
-        all_candidates = list(self.I)
-        extensions = {i + a for i in self.I for a in self.alphabet}
-        all_candidates.extend(list(extensions - self.I))
-        all_candidates.sort(key=lambda x: (len(x), x))
-
-        groups = {}
-        for i in all_candidates:
+    def ensure_monoid_consistency_doublesided(self):
+        """
+        [神级重构版] 基于 I 集合的内部左一致性自检！
+        不再使用 itertools 暴力穷举，时间复杂度严格降维至 O(|Σ|·M^3)！
+        """
+        # 1. 预先建立映射字典，加速查找
+        # 既然表格已经 closed，I·Σ 中的每一个元素必定能在 I 中找到等价的代表元
+        row_to_rep = {}
+        for i in sorted(list(self.I), key=lambda x: (len(x), x)):
             r = self.get_row(i)
-            if r not in groups: groups[r] = []
-            groups[r].append(i)
+            if r not in row_to_rep:
+                row_to_rep[r] = i
 
-        for r, group in groups.items():
-            if len(group) < 2: continue
+        # 2. 遍历所有的接缝（边界转移 t 属于 I·Σ）
+        for u in self.I:
+            for a in self.alphabet:
+                t = u + a
 
-            base = group[0]
-            for other in group[1:]:
-                # 探测逻辑
-                is_split = False
-                for length in range(depth + 1):
-                    current_probes = ["".join(s) for s in itertools.product(self.alphabet, repeat=length)]
-                    for x in current_probes:
-                        for y in current_probes:
-                            if self._ask_teacher(x + base + y) != self._ask_teacher(x + other + y):
-                                # 发现冲突，记录并标记，但不立即 return
-                                if x not in self.P: self.P.add(x)
-                                if y not in self.S: self.S.add(y)
-                                found_any_conflict = True
-                                is_split = True
-                                break  # 已经分开了这对 (base, other)，跳出探测
-                        if is_split: break
-                    if is_split: break
+                # 找到 DFA 强行把它合并到了哪一个代表元 v 上
+                t_row = self.get_row(t)
+                v = row_to_rep.get(t_row)
 
-        if not found_any_conflict:
-            # print(f">> [Pass] Depth={depth} 双边探测结束。")
-            pass
-        return not found_any_conflict
+                # 如果它自己就是代表元，或者合并没问题，跳过
+                if v is None or t == v:
+                    continue
+
+                # 【真正的代数拷问开始】
+                # t 和 v 在现在的 DFA 看来是一模一样的（未来一样）
+                # 判官问：如果给你们戴上同样的历史帽子 i，在未来探测器 s 之下，你们还一样吗？
+                for i in self.I:
+                    for s in self.S:
+                        q_t = self._ask_teacher(i + t + s)
+                        q_v = self._ask_teacher(i + v + s)
+
+                        if q_t != q_v:
+                            # 发现内鬼！DFA 的合并是非法的！
+                            # print(f">> [拦截] 发现代数破裂！前缀 '{i}' 拆散了转移 '{t}' 和代表元 '{v}'")
+
+                            # 把这把尖刀 i 加进左语境 P 里，强制下一轮填表时分裂状态
+                            if i not in self.P:
+                                self.P.add(i)
+
+                            # 找到了破绽就立即退回第一阶段重新填表
+                            return False
+
+                            # 所有的接缝都通过了代数拷问！
+        return True
 
     # ... [性能报告和统计函数保持不变] ...
 
-    def learn(self, depth=1):
+    def learn(self):
         self.P = {''}
         self.S = {''}
         self.I = {''}
@@ -456,7 +506,7 @@ class Learner:
 
             # --- 阶段 4: Monoid 双边探测 ---
             t3 = time.perf_counter()
-            consistent = self.ensure_monoid_consistency_doublesided(depth)
+            consistent = self.ensure_monoid_consistency_doublesided()
             self.monoid_probe_time += (time.perf_counter() - t3)
 
             if not consistent:
