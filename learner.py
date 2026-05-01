@@ -1,519 +1,514 @@
-import itertools, time
+# 文件名: learner.py
+import os
+import shutil
+import time
+
 from automata.fa.dfa import DFA
 
 
-
 class Learner:
-    def __init__(self, teacher, alphabet, max_p_length=0, ce_strategy='breakpoint'):
+    """一体化 L* learner；debug_mode=True 时保存观察表和假设 DFA 快照。"""
+
+    def __init__(
+        self,
+        teacher,
+        alphabet,
+        max_p_length=0,
+        ce_strategy="breakpoint",
+        debug_mode=False,
+        debug_dir="debug_snapshots",
+    ):
         self.teacher = teacher
         self.alphabet = sorted(list(alphabet))
+        self.ce_strategy = ce_strategy
+        self.debug_mode = debug_mode
+        self.debug_dir = debug_dir
+        self.max_p_length = max_p_length
+
         self.query_cache = {}
         self.mq_count = 0
 
-        # --- 反例处理策略 ---
-        # 'expand': 扩展观测表策略 (加所有前缀和后缀)
-        # 'breakpoint': 精确断点策略 (RS 二分查找法)
-        self.ce_strategy = ce_strategy
+        self.reset_learning_state()
 
-        # --- 增量填表需要的快照 ---
+    # ------------------------------------------------------------------
+    # 初始化与通用工具
+    # ------------------------------------------------------------------
+    def reset_learning_state(self):
+        """重置观测表、增量填表标记和性能统计。"""
+        self.P = {""}
+        self.S = {""}
+        self.I = {""}
+        self.table = {}
+        self.state_to_rep = {}
+
         self.filled_rows = set()
         self.processed_P = set()
         self.processed_S = set()
 
-        self.P = {''}
-        self.S = {''}
-        self.I = {''}
-        self.table = {}
-        self.state_to_rep = {}
+        self.total_start_time = 0.0
+        self.total_end_time = 0.0
+        self.lstar_pure_time = 0.0
+        self.monoid_probe_time = 0.0
+        self.eq_time = 0.0
+        self.eq_count = 0
 
+    def prepare_debug_dir(self):
+        """清空并重新创建 debug 快照目录。"""
+        if os.path.exists(self.debug_dir):
+            shutil.rmtree(self.debug_dir)
+
+        os.makedirs(self.debug_dir)
+        print(f"[Debug] 已创建快照目录: {self.debug_dir}")
+
+    def sort_key(self, value):
+        """字符串集合的统一排序规则：先长度，再字典序。"""
+        return len(value), value
+
+    def right_extensions(self):
+        """生成当前主区 I 的右扩展 I·Σ。"""
+        return {i + a for i in self.I for a in self.alphabet}
+
+    def needed_rows(self):
+        """当前观测表需要维护的所有行：主区 I 加右扩展。"""
+        return self.I | self.right_extensions()
+
+    # ------------------------------------------------------------------
+    # 查询与观测表
+    # ------------------------------------------------------------------
     def _ask_teacher(self, string):
+        """带缓存地向 teacher 发起 membership query。"""
         if string in self.query_cache:
             return self.query_cache[string]
-        val = self.teacher.membership_query(string)
+
+        value = self.teacher.membership_query(string)
+        self.query_cache[string] = value
         self.mq_count += 1
-        self.query_cache[string] = val
-        return val
+        return value
 
     def _fill_cell(self, i, p, s):
-        """底层单元格填充逻辑"""
+        """填充 3D 观测表中的一个单元格 T[i, p, s]。"""
         if (i, p, s) not in self.table:
             self.table[(i, p, s)] = self._ask_teacher(p + i + s)
 
+    def get_row(self, i):
+        """读取行 i 在所有 (p, s) 语境下的布尔特征向量。"""
+        row_values = []
+        for p in sorted(self.P):
+            for s in sorted(self.S):
+                if (i, p, s) not in self.table:
+                    self._fill_cell(i, p, s)
+                row_values.append(self.table[(i, p, s)])
+        return tuple(row_values)
+
     def fill_table(self):
-        """
-        [最终修正版] 增量填表逻辑。
-        支持双向扩展 (I·Σ 和 Σ·I)，并使用 filled_rows 避免重复查询。
-        """
-        # 1. 构造所有需要存在的行：基(I) + 右扩展 + 左扩展
-        right_ext = {i + a for i in self.I for a in self.alphabet}
-        # left_ext = {a + i for i in self.I for a in self.alphabet}
-
-        # all_needed_rows 是当前观测表必须包含的所有行
-        # all_needed_rows = self.I | right_ext | left_ext
-        all_needed_rows = self.I | right_ext
-        # 2. 计算增量
-        # 新出现的行 = 当前需要的行 - 历史填过的行
-        new_rows = all_needed_rows - self.filled_rows
-
-        # 新的前缀和后缀
+        """增量填表：只补新行、新 P 列或新 S 列造成的缺口。"""
+        all_rows = self.needed_rows()
+        new_rows = all_rows - self.filled_rows
         new_P = self.P - self.processed_P
         new_S = self.S - self.processed_S
 
-        # --- 情况 1: 有新行出现 (i_new, P_all, S_all) ---
-        if new_rows:
-            for i in new_rows:
-                for p in self.P:
-                    for s in self.S:
-                        self._fill_cell(i, p, s)
+        for i in new_rows:
+            self.fill_row(i)
 
-        # --- 情况 2: 有新前缀出现 (I_all, p_new, S_all) ---
-        if new_P:
-            # 注意：新 P 需要对所有行生效
-            for p in new_P:
-                for i in all_needed_rows:
-                    for s in self.S:
-                        self._fill_cell(i, p, s)
+        for p in new_P:
+            self.fill_prefix_column(p, all_rows)
 
-        # --- 情况 3: 有新后缀出现 (I_all, P_all, s_new) ---
-        if new_S:
-            # 注意：新 S 需要对所有行生效
-            for s in new_S:
-                for i in all_needed_rows:
-                    for p in self.P:
-                        self._fill_cell(i, p, s)
+        for s in new_S:
+            self.fill_suffix_column(s, all_rows)
 
-        # 3. 更新快照 (打卡记录)
-        # 将本次涉及的所有行标记为“已填”
-        self.filled_rows.update(all_needed_rows)
+        self.filled_rows.update(all_rows)
         self.processed_P = self.P.copy()
         self.processed_S = self.S.copy()
 
-    def get_row(self, i):
-        # 这里的 get_row 依然保持一致性，但依赖于 fill_table 已填完
-        sorted_P = sorted(list(self.P))
-        sorted_S = sorted(list(self.S))
-        row_values = []
-        for p in sorted_P:
-            for s in sorted_S:
-                val = self.table.get((i, p, s))
-                if val is None:
-                    val = self._ask_teacher(p + i + s)
-                    self.table[(i, p, s)] = val
-                row_values.append(val)
-        return tuple(row_values)
+    def fill_row(self, i):
+        """为新出现的行 i 补齐当前全部 P×S 单元格。"""
+        for p in self.P:
+            for s in self.S:
+                self._fill_cell(i, p, s)
 
+    def fill_prefix_column(self, p, rows):
+        """新左语境 p 加入后，为所有当前行补齐这一组单元格。"""
+        for i in rows:
+            for s in self.S:
+                self._fill_cell(i, p, s)
+
+    def fill_suffix_column(self, s, rows):
+        """新右语境 s 加入后，为所有当前行补齐这一组单元格。"""
+        for i in rows:
+            for p in self.P:
+                self._fill_cell(i, p, s)
+
+    # ------------------------------------------------------------------
+    # L* 主逻辑
+    # ------------------------------------------------------------------
     def is_closed_and_separable(self):
-        """
-        [双边封闭性检查]
-        不仅检查右扩展 (i + a)，也检查左扩展 (a + i)。
-        """
-        # 1. 获取当前 I 中所有行的特征向量
+        """检查右闭合性：每个 I·Σ 行都必须能在 I 中找到等价代表元。"""
         rows_in_I = {self.get_row(i) for i in self.I}
+        extensions = sorted(self.right_extensions(), key=self.sort_key)
 
-        # 2. 生成所有候选扩展项
-        # 我们优先检查短的字符串，这样生成的 I 集合更紧凑
-        right_ext = {i + a for i in self.I for a in self.alphabet}
-        # left_ext = {a + i for i in self.I for a in self.alphabet}
-
-        # 合并并排序 (按长度 -> 字典序)
-        # all_extensions = sorted(list(right_ext | left_ext), key=lambda x: (len(x), x))
-        all_extensions = sorted(list(right_ext), key=lambda x: (len(x), x))
-
-        for ext in all_extensions:
+        for ext in extensions:
             if ext in self.I:
-                continue  # 已经在基里的跳过
+                continue
 
-            # 获取扩展项的行向量
-            ext_row = self.get_row(ext)
-
-            # 如果发现这个扩展项的行为在 I 里找不到原型
-            if ext_row not in rows_in_I:
-                # print(f"发现新代数状态: '{ext}' (提拔入 I)")
+            if self.get_row(ext) not in rows_in_I:
+                print(f"  [闭合拦截] 发现新状态: '{ext}'，将其提拔进主区 I")
                 self.I.add(ext)
-                # todo:
-                # self.P.add(ext)
-                return False  # 立即跳出，触发 fill_table 补全数据
+                return False
 
         return True
 
     def build_hypothesis(self):
-        """
-        构建假设自动机 (DFA / Monoid Acceptor)
-        """
-        states = set()
-        row_to_state = {}
-
-        # 1. 确定状态 (唯一的行向量)
-        unique_rows = sorted(list({self.get_row(i) for i in self.I}))
-        for idx, r in enumerate(unique_rows):
-            state_name = f"q{idx}"
-            states.add(state_name)
-            row_to_state[r] = state_name
-
-        # 2. 初始状态
-        start_row = self.get_row('')
-        initial_state = row_to_state[start_row]
-
-        final_states = set()
-        transitions = {s: {} for s in states}
-
-        # 3. 构建转移
-        for r in unique_rows:
-            representative_i = next(i for i in self.I if self.get_row(i) == r)
-            curr_state = row_to_state[r]
-
-            # 接受状态判断：看空语境 (p='', s='')
-            if self._ask_teacher(representative_i):
-                final_states.add(curr_state)
-
-            for a in self.alphabet:
-                next_i = representative_i + a
-                next_row = self.get_row(next_i)
-
-                if next_row in row_to_state:
-                    transitions[curr_state][a] = row_to_state[next_row]
-                else:
-                    # 理论上不会发生 (如果 Closed)
-                    transitions[curr_state][a] = curr_state
+        """根据当前观测表的唯一行向量构造假设 DFA。"""
+        row_to_state, row_to_rep = self.build_state_maps()
+        states = set(row_to_state.values())
+        initial_state = row_to_state[self.get_row("")]
+        final_states = self.build_final_states(row_to_rep, row_to_state)
+        transitions = self.build_transitions(row_to_rep, row_to_state, states)
 
         return DFA(
             states=states,
             input_symbols=set(self.alphabet),
             transitions=transitions,
             initial_state=initial_state,
-            final_states=final_states
+            final_states=final_states,
         )
 
-    def display_observation_table(self, filename="observation_table.txt"):
-        """
-        [优化版] 将 3D 观测表导出到文件。
-        改进点：
-        1. 包含双向扩展 (I·Σ 和 Σ·I) 到下半部分，确保不漏掉左扩展。
-        2. 使用集合运算加速行生成。
-        3. 格式对齐更美观。
-        """
-        import os
-
-        # --- 1. 准备数据 ---
-        # 排序辅助函数：按长度 -> 字典序
-        sort_key = lambda x: (len(x), x)
-
-        sorted_p = sorted(list(self.P), key=sort_key)
-        sorted_s = sorted(list(self.S), key=sort_key)
-
-        # 上半部分 (Upper): 基 I
-        sorted_i = sorted(list(self.I), key=sort_key)
-
-        # 下半部分 (Lower): 所有的扩展 (右扩展 + 左扩展) 减去已经在 I 里的
-        existing_I = set(self.I)
-        right_ext = {i + a for i in self.I for a in self.alphabet}
-        left_ext = {a + i for i in self.I for a in self.alphabet}
-
-        # 核心修正：双向扩展去重后，排除掉已经是基的行
-        lower_rows_set = (right_ext | left_ext) - existing_I
-        sorted_lower = sorted(list(lower_rows_set), key=sort_key)
-
-        # --- 2. 格式化工具 ---
-        def fmt_cell(val):
-            # 1=接受, 0=拒绝, ?=未填(Bug)
-            return "1" if val else "0" if val is not None else "?"
-
-        def fmt_str(s, width=8):
-            # 空串显示为 ε
-            label = 'ε' if s == '' else s
-            return f"{label:^{width}}"
-
-        # --- 3. 写入文件 ---
-        with open(filename, "w", encoding="utf-8") as f:
-            # 统计头信息
-            total_rows = len(sorted_i) + len(sorted_lower)
-            n_cols = len(sorted_p) * len(sorted_s)
-
-            f.write("=" * 120 + "\n")
-            f.write(f"          OBSERVATION TABLE REPORT\n")
-            f.write(f"          Rows: {total_rows} (Upper I: {len(sorted_i)} | Lower Ext: {len(sorted_lower)})\n")
-            f.write(f"          Cols: {n_cols} (P: {len(sorted_p)} * S: {len(sorted_s)})\n")
-            f.write("=" * 120 + "\n")
-
-            # 动态计算列宽 (至少 8 格，防止 (p,s) 太长显示不下)
-            col_width = max(8, max([len(p) + len(s) + 3 for p in sorted_p for s in sorted_s] + [5]))
-            row_header_width = max(12, max([len(r) for r in sorted_i + sorted_lower] + [10])) + 2
-
-            # --- 表头 ---
-            header = f"{'Row':<{row_header_width}} |"
-            for p in sorted_p:
-                for s in sorted_s:
-                    col_label = f"({fmt_str(p, 1).strip()},{fmt_str(s, 1).strip()})"
-                    header += f" {col_label:^{col_width}} |"
-
-            sep_line = "-" * len(header)
-            double_sep = "=" * len(header)
-
-            f.write(header + "\n")
-            f.write(double_sep + "\n")
-
-            # --- 辅助写入函数 ---
-            def write_rows(rows):
-                for r in rows:
-                    # 行头
-                    line = f"{fmt_str(r, row_header_width):<{row_header_width}} |"
-                    # 数据格
-                    for p in sorted_p:
-                        for s in sorted_s:
-                            val = self.table.get((r, p, s))
-                            line += f" {fmt_cell(val):^{col_width}} |"
-                    f.write(line + "\n")
-
-            # --- 写入 Upper Part (I) ---
-            write_rows(sorted_i)
-
-            # 分隔线
-            f.write(sep_line + "\n")
-
-            # --- 写入 Lower Part (Extensions) ---
-            write_rows(sorted_lower)
-
-            # 结束线
-            f.write(double_sep + "\n")
-
-        print(f">> [Log] 观测表已导出至: {os.path.abspath(filename)}")
-
-    def print_performance_report(self):
-        total_raw_time = self.total_end_time - self.total_start_time
-        # 算法的核心纯执行时间 = L*纯逻辑 + Monoid探测
-        core_algo_time = self.lstar_pure_time + self.monoid_probe_time
-
-        print("\n" + "=" * 50)
-        print("          ALGORITHM PERFORMANCE REPORT")
-        print("=" * 50)
-        print(f"Total Wall Clock Time    : {total_raw_time:.4f} s")
-        print(f"External EQ Time (Excl.) : {self.eq_time:.4f} s ({(self.eq_time / total_raw_time) * 100:.1f}%)")
-        print("-" * 50)
-        print(f"PURE ALGORITHM TIME      : {core_algo_time:.10f} s")
-        print(f"  - Logic & Table Filling: {self.lstar_pure_time:.4f} s")
-        print(f"  - Monoid Probing       : {self.monoid_probe_time:.4f} s")
-        print("-" * 50)
-        print(f"Total Membership Queries : {self.mq_count}")
-        print(f"Core Algorithm QPS       : {self.mq_count / core_algo_time:.1f}")
-        print("=" * 50 + "\n")
-
-    def print_final_statistics(self):
-        """打印最终统计数据"""
-        print("\n" + "=" * 45)
-        print("OBSERVATION TABLE STATISTICS")
-        print("=" * 45)
-        print(f"Total REAL Queries       : {self.mq_count}")
-        print(f"Total Cached Hits        : {len(self.query_cache)}")
-
-        n_rows_upper = len(self.I)
-        n_rows_lower = len({i + a for i in self.I for a in self.alphabet} - self.I)
-        n_cols = len(self.P) * len(self.S)
-
-        print("-" * 45)
-        print(f"Table Rows (Upper I)     : {n_rows_upper}")
-        print(f"Table Rows (Lower Ext)   : {n_rows_lower}")
-        print(f"Total Rows               : {n_rows_upper + n_rows_lower}")
-        print("-" * 45)
-        print(f"Table Cols (P x S)       : {n_cols} (P={len(self.P)}, S={len(self.S)})")
-        print("=" * 45 + "\n")
-
-    # def ensure_monoid_consistency_doublesided(self, depth=1):
-    #     """
-    #     [优化] 批量探测。
-    #     一次收集所有能发现的冲突，避免反复重填表。
-    #     """
-    #     import itertools
-    #     found_any_conflict = False
-    #
-    #     all_candidates = list(self.I)
-    #     extensions = {i + a for i in self.I for a in self.alphabet}
-    #     all_candidates.extend(list(extensions - self.I))
-    #     all_candidates.sort(key=lambda x: (len(x), x))
-    #
-    #     groups = {}
-    #     for i in all_candidates:
-    #         r = self.get_row(i)
-    #         if r not in groups: groups[r] = []
-    #         groups[r].append(i)
-    #
-    #     for r, group in groups.items():
-    #         if len(group) < 2: continue
-    #
-    #         base = group[0]
-    #         for other in group[1:]:
-    #             # 探测逻辑
-    #             is_split = False
-    #             for length in range(depth + 1):
-    #                 current_probes = ["".join(s) for s in itertools.product(self.alphabet, repeat=length)]
-    #                 for x in current_probes:
-    #                     for y in current_probes:
-    #                         if self._ask_teacher(x + base + y) != self._ask_teacher(x + other + y):
-    #                             # 发现冲突，记录并标记，但不立即 return
-    #                             if x not in self.P: self.P.add(x)
-    #                             if y not in self.S: self.S.add(y)
-    #                             found_any_conflict = True
-    #                             is_split = True
-    #                             break  # 已经分开了这对 (base, other)，跳出探测
-    #                     if is_split: break
-    #                 if is_split: break
-    #
-    #     if not found_any_conflict:
-    #         # print(f">> [Pass] Depth={depth} 双边探测结束。")
-    #         pass
-    #     return not found_any_conflict
-
-    def ensure_monoid_consistency_doublesided(self):
-        """
-        [神级重构版] 基于 I 集合的内部左一致性自检！
-        不再使用 itertools 暴力穷举，时间复杂度严格降维至 O(|Σ|·M^3)！
-        """
-        # 1. 预先建立映射字典，加速查找
-        # 既然表格已经 closed，I·Σ 中的每一个元素必定能在 I 中找到等价的代表元
+    def build_state_maps(self):
+        """建立“行向量 -> 状态名”和“行向量 -> 代表元”的映射。"""
+        row_to_state = {}
         row_to_rep = {}
-        for i in sorted(list(self.I), key=lambda x: (len(x), x)):
-            r = self.get_row(i)
-            if r not in row_to_rep:
-                row_to_rep[r] = i
 
-        # 2. 遍历所有的接缝（边界转移 t 属于 I·Σ）
+        unique_rows = sorted({self.get_row(i) for i in self.I})
+        for row in unique_rows:
+            representative = self.representative_for_row(row)
+            state_name = "q0" if representative == "" else representative
+
+            row_to_state[row] = state_name
+            row_to_rep[row] = representative
+            self.state_to_rep[state_name] = representative
+
+        return row_to_state, row_to_rep
+
+    def representative_for_row(self, row):
+        """为一个行向量选择 I 中最短、最稳定的代表字符串。"""
+        candidates = sorted(self.I, key=self.sort_key)
+        return next(i for i in candidates if self.get_row(i) == row)
+
+    def build_final_states(self, row_to_rep, row_to_state):
+        """接受状态由代表元自身是否属于目标语言决定。"""
+        final_states = set()
+        for row, representative in row_to_rep.items():
+            if self._ask_teacher(representative):
+                final_states.add(row_to_state[row])
+        return final_states
+
+    def build_transitions(self, row_to_rep, row_to_state, states):
+        """按照代表元右接一个字母后的行向量生成 DFA 转移。"""
+        transitions = {state: {} for state in states}
+
+        for row, representative in row_to_rep.items():
+            current_state = row_to_state[row]
+            for char in self.alphabet:
+                next_row = self.get_row(representative + char)
+                transitions[current_state][char] = row_to_state.get(next_row, current_state)
+
+        return transitions
+
+    def ensure_monoid_consistency(self):
+        """内部左一致性自检：防止 DFA 合并破坏 syntactic monoid 的左语境行为。"""
+        row_to_rep = self.row_representatives()
+
         for u in self.I:
-            for a in self.alphabet:
-                t = u + a
+            for char in self.alphabet:
+                boundary = u + char
+                representative = row_to_rep.get(self.get_row(boundary))
 
-                # 找到 DFA 强行把它合并到了哪一个代表元 v 上
-                t_row = self.get_row(t)
-                v = row_to_rep.get(t_row)
-
-                # 如果它自己就是代表元，或者合并没问题，跳过
-                if v is None or t == v:
+                if representative is None or boundary == representative:
                     continue
 
-                # 【真正的代数拷问开始】
-                # t 和 v 在现在的 DFA 看来是一模一样的（未来一样）
-                # 判官问：如果给你们戴上同样的历史帽子 i，在未来探测器 s 之下，你们还一样吗？
-                for i in self.I:
-                    for s in self.S:
-                        q_t = self._ask_teacher(i + t + s)
-                        q_v = self._ask_teacher(i + v + s)
+                if not self.check_boundary_consistency(boundary, representative):
+                    return False
 
-                        if q_t != q_v:
-                            # 发现内鬼！DFA 的合并是非法的！
-                            # print(f">> [拦截] 发现代数破裂！前缀 '{i}' 拆散了转移 '{t}' 和代表元 '{v}'")
-
-                            # 把这把尖刀 i 加进左语境 P 里，强制下一轮填表时分裂状态
-                            if i not in self.P:
-                                self.P.add(i)
-
-                            # 找到了破绽就立即退回第一阶段重新填表
-                            return False
-
-                            # 所有的接缝都通过了代数拷问！
         return True
 
-    # ... [性能报告和统计函数保持不变] ...
+    def row_representatives(self):
+        """为当前 I 中每个行向量建立一个代表元。"""
+        row_to_rep = {}
+        for i in sorted(self.I, key=self.sort_key):
+            row_to_rep.setdefault(self.get_row(i), i)
+        return row_to_rep
 
-    def learn(self):
-        self.P = {''}
-        self.S = {''}
-        self.I = {''}
+    def check_boundary_consistency(self, boundary, representative):
+        """检查一个边界串和其代表元在所有已知左/右语境中是否一致。"""
+        for left in self.I:
+            for suffix in self.S:
+                q_boundary = self._ask_teacher(left + boundary + suffix)
+                q_rep = self._ask_teacher(left + representative + suffix)
+
+                if q_boundary != q_rep:
+                    print(
+                        f"  🚨 [代数拦截] 左前缀 '{left}' 在后缀 '{suffix}' 下，"
+                        f"拆散了边界 '{boundary}' 和代表元 '{representative}'"
+                    )
+                    print(f"               >> 行动: 将 '{left}' 加入 P 集合！")
+                    self.P.add(left)
+                    return False
+
+        return True
+
+    # ------------------------------------------------------------------
+    # 反例处理
+    # ------------------------------------------------------------------
+    def handle_counterexample(self, counterexample, hypothesis):
+        """根据配置处理 Oracle 返回的反例。"""
+        if self.ce_strategy == "expand":
+            self.expand_with_counterexample(counterexample)
+            return
+
+        self.handle_breakpoint_counterexample(counterexample, hypothesis)
+
+    def expand_with_counterexample(self, counterexample):
+        """朴素扩张策略：加入反例的全部后缀和前缀。"""
+        for k in range(len(counterexample) + 1):
+            self.S.add(counterexample[k:])
+
+        prefix = ""
+        for char in counterexample:
+            prefix += char
+            self.P.add(prefix)
+
+    def handle_breakpoint_counterexample(self, counterexample, hypothesis):
+        """Rivest-Schapire 二分断点策略，只加入关键区分后缀。"""
+        reps = self.trace_hypothesis_representatives(counterexample, hypothesis)
+        low, high = self.find_breakpoint(counterexample, reps)
+
+        if low is None:
+            self.S.add(counterexample)
+            self.P.add(counterexample)
+            return
+
+        distinguishing_suffix = counterexample[high:]
+        prefix_to_add = reps[low]
+
+        print(
+            f"  ⚔️ [反例拦截] 收反例 '{counterexample}'! "
+            f"二分断点定位: '{prefix_to_add}' | '{distinguishing_suffix}'"
+        )
+        print(f"               >> 行动: 将后缀 '{distinguishing_suffix}' 加入 S")
+        self.S.add(distinguishing_suffix)
+
+    def trace_hypothesis_representatives(self, word, hypothesis):
+        """沿假设 DFA 读取反例，记录每一步状态对应的代表元。"""
+        reps = []
+        current = hypothesis.initial_state
+        reps.append(self.state_to_rep[current])
+
+        for char in word:
+            current = hypothesis.transitions[current][char]
+            reps.append(self.state_to_rep[current])
+
+        return reps
+
+    def find_breakpoint(self, word, reps):
+        """在反例轨迹上二分查找 teacher 判定发生翻转的位置。"""
+        low, high = 0, len(word)
+        q_low = self._ask_teacher(reps[low] + word[low:])
+        q_high = self._ask_teacher(reps[high] + word[high:])
+
+        if q_low == q_high:
+            return None, None
+
+        while low + 1 < high:
+            mid = (low + high) // 2
+            q_mid = self._ask_teacher(reps[mid] + word[mid:])
+            if q_mid == q_low:
+                low = mid
+            else:
+                high = mid
+
+        return low, high
+
+    # ------------------------------------------------------------------
+    # Debug 输出
+    # ------------------------------------------------------------------
+    def save_table_snapshot(self, step):
+        """把当前观测表保存为 debug_snapshots/table_step_xxx.txt。"""
+        filename = os.path.join(self.debug_dir, f"table_step_{step:03d}.txt")
+        self.display_observation_table(filename)
+        print(f"\n▶️ [Step {step:03d}] 表格已更新，快照已保存")
+
+    def save_hypothesis_snapshot(self, hypothesis, step):
+        """把当前假设 DFA 保存成 Graphviz DOT 文本。"""
+        filename = os.path.join(self.debug_dir, f"hypothesis_step_{step:03d}")
+        self.print_acceptor(hypothesis, filename=filename)
+
+    def print_acceptor(self, dfa_obj, filename="hypothesis"):
+        """将假设 DFA 导出为 Graphviz DOT 文本文件。"""
+        filepath = f"{filename}.txt"
+
+        with open(filepath, "w", encoding="utf-8") as f:
+            f.write("digraph G {\n")
+            f.write("  rankdir=LR;\n")
+
+            if dfa_obj.final_states:
+                finals = " ".join(f'"{state}"' for state in dfa_obj.final_states)
+                f.write(f"  node [shape = doublecircle]; {finals};\n")
+
+            f.write("  node [shape = circle];\n")
+            f.write(f'  start [shape=point]; start -> "{dfa_obj.initial_state}";\n')
+
+            for state, transitions in dfa_obj.transitions.items():
+                for char, next_state in transitions.items():
+                    f.write(f'  "{state}" -> "{next_state}" [label="{char}"];\n')
+
+            f.write("}\n")
+
+        print(f"  📝 [纯文本出图] DOT 源码已保存至: {filepath}")
+        print("               >> 请将文件内容复制到 https://edotor.net/ 查看")
+
+    def display_observation_table(self, filename="observation_table.txt"):
+        """把当前 3D 观测表导出成便于阅读的文本表格。"""
+        sorted_p, sorted_s, sorted_i, sorted_lower = self.table_sections()
+        col_width, row_header_width = self.table_widths(sorted_p, sorted_s, sorted_i, sorted_lower)
+
+        with open(filename, "w", encoding="utf-8") as f:
+            self.write_table_summary(f, sorted_p, sorted_s, sorted_i, sorted_lower)
+            self.write_table_body(f, sorted_p, sorted_s, sorted_i, sorted_lower, col_width, row_header_width)
+
+    def table_sections(self):
+        """准备表格输出所需的 P、S、I 和 lower rows。"""
+        sorted_p = sorted(self.P, key=self.sort_key)
+        sorted_s = sorted(self.S, key=self.sort_key)
+        sorted_i = sorted(self.I, key=self.sort_key)
+        sorted_lower = sorted(self.right_extensions() - self.I, key=self.sort_key)
+        return sorted_p, sorted_s, sorted_i, sorted_lower
+
+    def table_widths(self, sorted_p, sorted_s, sorted_i, sorted_lower):
+        """根据当前字符串长度动态计算输出表格宽度。"""
+        col_width = max(8, max([len(p) + len(s) + 3 for p in sorted_p for s in sorted_s] + [5]))
+        row_header_width = max(12, max([len(r) for r in sorted_i + sorted_lower] + [10])) + 2
+        return col_width, row_header_width
+
+    def write_table_summary(self, file_obj, sorted_p, sorted_s, sorted_i, sorted_lower):
+        """写入观察表顶部的行列统计信息。"""
+        total_rows = len(sorted_i) + len(sorted_lower)
+        n_cols = len(sorted_p) * len(sorted_s)
+
+        file_obj.write("=" * 120 + "\n")
+        file_obj.write("          OBSERVATION TABLE REPORT\n")
+        file_obj.write(f"          Rows: {total_rows} (Upper I: {len(sorted_i)} | Lower Ext: {len(sorted_lower)})\n")
+        file_obj.write(f"          Cols: {n_cols} (P: {len(sorted_p)} * S: {len(sorted_s)})\n")
+        file_obj.write("=" * 120 + "\n")
+
+    def write_table_body(self, file_obj, sorted_p, sorted_s, sorted_i, sorted_lower, col_width, row_header_width):
+        """写入观察表表头、主区 I 和扩展区 lower rows。"""
+        header = self.table_header(sorted_p, sorted_s, col_width, row_header_width)
+        sep_line = "-" * len(header)
+        double_sep = "=" * len(header)
+
+        file_obj.write(header + "\n")
+        file_obj.write(double_sep + "\n")
+        self.write_table_rows(file_obj, sorted_i, sorted_p, sorted_s, col_width, row_header_width)
+        file_obj.write(sep_line + "\n")
+        self.write_table_rows(file_obj, sorted_lower, sorted_p, sorted_s, col_width, row_header_width)
+        file_obj.write(double_sep + "\n")
+
+    def table_header(self, sorted_p, sorted_s, col_width, row_header_width):
+        """生成观察表的列标题。"""
+        header = f"{'Row':<{row_header_width}} |"
+        for p in sorted_p:
+            for s in sorted_s:
+                col_label = f"({self.format_string(p, 1).strip()},{self.format_string(s, 1).strip()})"
+                header += f" {col_label:^{col_width}} |"
+        return header
+
+    def write_table_rows(self, file_obj, rows, sorted_p, sorted_s, col_width, row_header_width):
+        """写入一组观察表行。"""
+        for row in rows:
+            line = f"{self.format_string(row, row_header_width):<{row_header_width}} |"
+            for p in sorted_p:
+                for s in sorted_s:
+                    line += f" {self.format_cell(self.table.get((row, p, s))):^{col_width}} |"
+            file_obj.write(line + "\n")
+
+    def format_cell(self, value):
+        """把 membership query 的布尔值格式化为 1/0/?。"""
+        return "1" if value else "0" if value is not None else "?"
+
+    def format_string(self, value, width=8):
+        """输出表格时把空串显示为 epsilon。"""
+        label = "ε" if value == "" else value
+        return f"{label:^{width}}"
+
+    # ------------------------------------------------------------------
+    # 主循环
+    # ------------------------------------------------------------------
+    def learn(self, *args, **kwargs):
+        """运行学习循环，debug 模式下记录每一步快照。"""
+        self.reset_learning_state()
+        if self.debug_mode:
+            self.prepare_debug_dir()
 
         self.total_start_time = time.perf_counter()
-        self.lstar_pure_time = 0.0
-        self.monoid_probe_time = 0.0
-        self.eq_time = 0.0
-        self.eq_count = 0
+
+        step = 1
+        if self.debug_mode:
+            print("\n🚀 [Learner] 启动学习引擎 (快照模式)...")
 
         while True:
-            # --- 阶段 1: 填表 & 闭合检查 ---
-            t0 = time.perf_counter()
-            self.fill_table()
+            hypothesis = self.run_table_phase(step)
+            step += 1
 
-            if not self.is_closed_and_separable():
-                self.lstar_pure_time += (time.perf_counter() - t0)
+            if hypothesis is None:
                 continue
 
-            # 构建假设
-            hypothesis = self.build_hypothesis()
-            self.lstar_pure_time += (time.perf_counter() - t0)
+            if self.debug_mode:
+                self.save_hypothesis_snapshot(hypothesis, step - 1)
 
-            # --- 阶段 2: 外部 EQ (Teacher) ---
-            t1 = time.perf_counter()
-            counterexample = self.teacher.equivalence_query(hypothesis)
-            self.eq_time += (time.perf_counter() - t1)
-            self.eq_count += 1
-
-            # --- 阶段 3: 处理反例 (参数化策略) ---
-            if counterexample is not None:
-                t2 = time.perf_counter()
-
-                # Maler-Pnueli 策略
-                if self.ce_strategy == 'expand':
-                    # print(f"收到反例: '{counterexample}'，执行 [全面扩张观测表] 策略...")
-                    # 策略 A: 直接扩张，加入反例的所有后缀到 S
-                    for k in range(len(counterexample) + 1):
-                        self.S.add(counterexample[k:])
-
-                    # 策略 B: 直接扩张，加入反例的所有前缀到 I 和 P
-                    prefix = ""
-                    for char in counterexample:
-                        prefix += char
-                        # self.I.add(prefix)
-                        self.P.add(prefix)
-                # RS策略
-                elif self.ce_strategy == 'breakpoint':
-                    # print(f"收到反例: '{counterexample}'，执行 [精确断点查找] 策略...")
-                    w = counterexample
-                    m = len(w)
-
-                    # 1. 模拟在假设中走一遍，记录轨迹
-                    reps = []
-                    curr = hypothesis.initial_state
-                    reps.append(self.state_to_rep[curr])
-                    for char in w:
-                        curr = hypothesis.transitions[curr][char]
-                        reps.append(self.state_to_rep[curr])
-
-                    low = 0
-                    high = m
-                    Q_low = self._ask_teacher(reps[low] + w[low:])
-                    Q_high = self._ask_teacher(reps[high] + w[high:])
-
-                    # 2. 二分查找找断点
-                    if Q_low != Q_high:
-                        while low + 1 < high:
-                            mid = (low + high) // 2
-                            Q_mid = self._ask_teacher(reps[mid] + w[mid:])
-                            if Q_mid == Q_low:
-                                low = mid
-                            else:
-                                high = mid
-
-                        # 3. 提取精准后缀和前缀
-                        distinguishing_suffix = w[high:]
-                        prefix_to_add = reps[low]
-
-                        self.S.add(distinguishing_suffix)
-                        # self.I.add(prefix_to_add)
-                        self.P.add(prefix_to_add)
-                    else:
-                        # Fallback
-                        self.S.add(w)
-                        # self.I.add(w)
-                        self.P.add(w)
-
-                self.lstar_pure_time += (time.perf_counter() - t2)
+            if self.run_equivalence_phase(hypothesis):
                 continue
 
-            # --- 阶段 4: Monoid 双边探测 ---
-            t3 = time.perf_counter()
-            consistent = self.ensure_monoid_consistency_doublesided()
-            self.monoid_probe_time += (time.perf_counter() - t3)
+            if self.run_monoid_phase():
+                self.total_end_time = time.perf_counter()
+                print("\n🎉 [完结] 句法幺半群代数结构完美收敛！")
+                return hypothesis
 
-            if not consistent:
-                continue
+    def run_table_phase(self, step):
+        """填表、可选保存表格快照、检查闭合性；闭合时返回假设 DFA。"""
+        start = time.perf_counter()
+        self.fill_table()
 
-            # 完美收官
-            self.total_end_time = time.perf_counter()
-            self.print_performance_report()
-            self.print_final_statistics()
-            return hypothesis
+        if self.debug_mode:
+            self.save_table_snapshot(step)
+
+        if not self.is_closed_and_separable():
+            self.lstar_pure_time += time.perf_counter() - start
+            return None
+
+        hypothesis = self.build_hypothesis()
+        self.lstar_pure_time += time.perf_counter() - start
+        return hypothesis
+
+    def run_equivalence_phase(self, hypothesis):
+        """向 teacher 发起 EQ；若收到反例则处理并返回 True。"""
+        print("  [交卷] 闭合检查通过，向 Oracle 发起 EQ...")
+        start = time.perf_counter()
+        counterexample = self.teacher.equivalence_query(hypothesis)
+        self.eq_time += time.perf_counter() - start
+        self.eq_count += 1
+
+        if counterexample is None:
+            return False
+
+        start = time.perf_counter()
+        self.handle_counterexample(counterexample, hypothesis)
+        self.lstar_pure_time += time.perf_counter() - start
+        return True
+
+    def run_monoid_phase(self):
+        """EQ 通过后执行内部 monoid 左一致性自检。"""
+        print("  [自检] EQ 及格！启动内部左一致性自检...")
+        start = time.perf_counter()
+        consistent = self.ensure_monoid_consistency()
+        self.monoid_probe_time += time.perf_counter() - start
+        return consistent

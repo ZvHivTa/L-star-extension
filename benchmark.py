@@ -1,142 +1,183 @@
 import time
-from regex_converter import regex_to_minimal_dfa
-from oracle import Oracle
-from learner import Learner
+from dataclasses import dataclass
+
 from classic_lstar_learner import ClassicLearner
 from classic_lstar_oracle import ClassicOracle
-from learner_debug import LearnerDebug
+from learner import Learner
+from oracle import Oracle
+from regex_converter import regex_to_minimal_dfa
 
-def benchmark(regex_str,debug_mode=False,alphabet = {'a','b'}):
-    # alphabet = {'a', 'b','c'}
+
+DEFAULT_ALPHABET = {"a", "b"}
+OBSERVATION_TABLE_FILE = "observation_table.txt"
+
+
+@dataclass
+class BaselineResult:
+    """保存经典二步法的产物和计时结果。"""
+
+    learner: ClassicLearner
+    oracle: ClassicOracle
+    monoid_size: int
+    lstar_time: float
+    monoid_time: float
+
+    @property
+    def total_time(self):
+        """经典 L* 学习时间加上 DFA 转 monoid 时间。"""
+        return self.lstar_time + self.monoid_time
+
+
+@dataclass
+class IntegratedResult:
+    """保存一体化 learner 的实例和整体运行时间。"""
+
+    learner: object
+    total_time: float
+
+
+def benchmark(regex_str, debug_mode=False, alphabet=None):
+    """运行一次完整实验：构造目标 DFA、跑两种算法、输出对比报告。"""
+    alphabet = DEFAULT_ALPHABET if alphabet is None else set(alphabet)
+
+    print_header(regex_str)
+    target_dfa = regex_to_minimal_dfa(regex_str, alphabet)
+
+    baseline = run_classic_baseline(target_dfa, alphabet)
+    integrated = run_integrated_learner(target_dfa, alphabet, debug_mode)
+
+    integrated.learner.display_observation_table(OBSERVATION_TABLE_FILE)
+    print_report(regex_str, target_dfa, baseline, integrated)
+
+
+def run_classic_baseline(target_dfa, alphabet):
+    """执行经典 baseline：先用 L* 学 DFA，再把学到的 DFA 转成 transition monoid。"""
+    print("\n>> 开始执行: 过程 A [经典二步法: Classic L* -> Monoid]")
+
+    classic_oracle = ClassicOracle(target_dfa)
+    classic_learner = ClassicLearner(classic_oracle, alphabet)
+
+    start_lstar = time.perf_counter()
+    learned_dfa = classic_learner.learn()
+    lstar_time = time.perf_counter() - start_lstar
+
+    tool_oracle = Oracle(target_dfa, max_ce_length=1000)
+    start_monoid = time.perf_counter()
+    monoid_size, _ = tool_oracle._compute_transition_monoid_for_test(learned_dfa)
+    monoid_time = time.perf_counter() - start_monoid
+
+    return BaselineResult(
+        learner=classic_learner,
+        oracle=classic_oracle,
+        monoid_size=monoid_size,
+        lstar_time=lstar_time,
+        monoid_time=monoid_time,
+    )
+
+
+def run_integrated_learner(target_dfa, alphabet, debug_mode):
+    """执行改进版一体化 learner，直接在学习循环中加入 monoid 相关检查。"""
+    print("\n>> 开始执行: 过程 B [改进版一体化 L* (位图化 + 纵向扩张)]")
+
+    oracle = Oracle(target_dfa)
+    learner = build_integrated_learner(oracle, alphabet, debug_mode)
+
+    start = time.perf_counter()
+    learner.learn()
+    total_time = time.perf_counter() - start
+
+    return IntegratedResult(learner=learner, total_time=total_time)
+
+
+def build_integrated_learner(oracle, alphabet, debug_mode):
+    """构造一体化 learner；debug_mode 控制是否输出快照文件。"""
+    if debug_mode:
+        print("   [开启 Debug] 将详细记录每次表格的代数分裂轨迹...")
+
+    return Learner(oracle, alphabet, max_p_length=1, debug_mode=debug_mode)
+
+
+def print_header(regex_str):
+    """打印单次 benchmark 的开场信息。"""
     print("\n" + "*" * 65)
     print(f"🎯 正在测试正则: {regex_str}")
     print("*" * 65)
 
-    target_dfa = regex_to_minimal_dfa(regex_str, alphabet)
 
-    # ==========================================
-    # 过程 A: 经典朴素二步法 (Naive Baseline)
-    # 阶段1: Classic L* 学习 DFA (黑盒)
-    # 阶段2: DFA 暴力转 Monoid (白盒)
-    # ==========================================
-    print("\n>> 开始执行: 过程 A [经典二步法: Classic L* -> Monoid]")
-    classic_oracle = ClassicOracle(target_dfa)
-    classic_learner = ClassicLearner(classic_oracle, alphabet)
-
-    # 阶段 1: 学习 DFA
-    start_a1 = time.perf_counter()
-    learned_dfa_classic = classic_learner.learn()
-    end_a1 = time.perf_counter()
-    time_lstar_classic = end_a1 - start_a1
-
-    # 阶段 2: 将学到的 DFA 暴力转换为 Monoid
-    # （这里我们借用旧版 oracle 里的工具函数来跑转换矩阵）
-    tool_oracle = Oracle(target_dfa,max_ce_length=1000)
-    start_a2 = time.perf_counter()
-    m_size, _ = tool_oracle._compute_transition_monoid_for_test(learned_dfa_classic)
-    end_a2 = time.perf_counter()
-    time_conv_classic = end_a2 - start_a2
-
-    total_time_classic = time_lstar_classic + time_conv_classic
-
-
-
-
-    # ==========================================
-    # 过程 B: 你的改进版一体化算法 (Integrated Learner)
-    # ==========================================
-    print("\n>> 开始执行: 过程 B [改进版一体化 L* (位图化 + 纵向扩张)]")
-    oracle_integrated = Oracle(target_dfa)
-
-    if debug_mode:
-        print("   [开启 Debug] 将详细记录每次表格的代数分裂轨迹...")
-        learner_integrated = LearnerDebug(oracle_integrated, alphabet)
-    else:
-        learner_integrated = Learner(oracle_integrated, alphabet, max_p_length=1)
-    start_b = time.perf_counter()
-    result_syntactic_monoid = learner_integrated.learn()
-    end_b = time.perf_counter()
-    total_time_integrated = end_b - start_b
-
-    # 打印观测表到文件
-    learner_integrated.display_observation_table("observation_table.txt")
-
-    # ==========================================
-    # 结果汇总与对比
-    # ==========================================
+def print_report(regex_str, target_dfa, baseline, integrated):
+    """汇总目标自动机特征和两种算法的性能指标。"""
     print("\n" + "=" * 65)
     print(f"📊 最终对比报告 - 正则: {regex_str}")
     print("=" * 65)
 
-    print(f"【代数特征】")
+    print("【代数特征】")
     print(f"  - Minimal DFA 状态数 : {len(target_dfa.states)}")
-    print(f"  - Monoid 规模        : {m_size}")
+    print(f"  - Monoid 规模        : {baseline.monoid_size}")
 
-    print(f"\n【过程 A: 经典朴素二步法 (Baseline)】")
-    print(f"  - 阶段1 (L* 学 DFA)  : {time_lstar_classic:.6f} s")
-    print(
-        f"      └─ 其中 EQ 耗时  : {classic_learner.eq_time:.6f} s (占比 {(classic_learner.eq_time / time_lstar_classic) * 100:.1f}%)")
-    print(f"  - 阶段2 (转 Monoid)  : {time_conv_classic:.6f} s")
-    print(f"  - 阶段1+2 总耗时     : {total_time_classic:.6f} s")
-    print(f"  - MQ 查询总数        : {classic_oracle.mq_count} 次")
-    print(f"  - EQ 查询总数        : {classic_learner.eq_count} 次")
+    print_baseline_report(baseline)
+    print_integrated_report(integrated)
+    print_conclusion(baseline.total_time, integrated.total_time)
 
-    print(f"\n【过程 B: 你的改进版一体化 L*】")
-    print(f"  - 总耗时             : {total_time_integrated:.6f} s")
-    print(
-        f"      └─ 其中 EQ 耗时  : {learner_integrated.eq_time:.6f} s (占比 {(learner_integrated.eq_time / total_time_integrated) * 100:.1f}%)")
-    print(f"  - MQ 查询总数        : {learner_integrated.mq_count} 次")
-    # 注意：这里的 EQ 次数需要你在 learner.py 里也加上 eq_count 统计，或者粗略看输出里有几次“收到反例”
+
+def print_baseline_report(result):
+    """打印经典二步法的时间、查询次数和 EQ 占比。"""
+    eq_percent = percent(result.learner.eq_time, result.lstar_time)
+
+    print("\n【过程 A: 经典朴素二步法 (Baseline)】")
+    print(f"  - 阶段1 (L* 学 DFA)  : {result.lstar_time:.6f} s")
+    print(f"      └─ 其中 EQ 耗时  : {result.learner.eq_time:.6f} s (占比 {eq_percent:.1f}%)")
+    print(f"  - 阶段2 (转 Monoid)  : {result.monoid_time:.6f} s")
+    print(f"  - 阶段1+2 总耗时     : {result.total_time:.6f} s")
+    print(f"  - MQ 查询总数        : {result.oracle.mq_count} 次")
+    print(f"  - EQ 查询总数        : {result.learner.eq_count} 次")
+
+
+def print_integrated_report(result):
+    """打印一体化算法的时间、查询次数和 EQ 占比。"""
+    learner = result.learner
+    eq_percent = percent(learner.eq_time, result.total_time)
+    eq_count = getattr(learner, "eq_count", "未统计")
+
+    print("\n【过程 B: 改进版一体化 L*】")
+    print(f"  - 总耗时             : {result.total_time:.6f} s")
+    print(f"      └─ 其中 EQ 耗时  : {learner.eq_time:.6f} s (占比 {eq_percent:.1f}%)")
+    print(f"  - MQ 查询总数        : {learner.mq_count} 次")
+    print(f"  - EQ 查询总数        : {eq_count} 次")
+
+
+def print_conclusion(baseline_time, integrated_time):
+    """根据总耗时给出本次实验的简单胜负判断。"""
     print("-" * 65)
-    if total_time_integrated < total_time_classic:
-        speedup = total_time_classic / total_time_integrated
+    if integrated_time < baseline_time:
+        speedup = baseline_time / integrated_time
         print(f"🏆 结论: 你的算法赢了！比朴素基线快了 {speedup:.2f} 倍！")
     else:
-        print(f"💡 结论: 朴素基线依然领先，需要继续排查 Python 的循环开销。")
+        print("💡 结论: 朴素基线依然领先，需要继续排查 Python 的循环开销。")
     print("=" * 65 + "\n")
-    # result_syntactic_monoid.show_diagram(path='syntactic_monoid.png')
 
 
-    # 打印 Graphviz DOT 源码
-    # print_acceptor(result_syntactic_monoid)
+def percent(part, total):
+    """安全计算百分比，避免耗时过小时除零。"""
+    return 0.0 if total == 0 else part / total * 100
 
 
-
-
-
-# 循环群语言
 def generate_cyclic_group_regex(k):
-    """
-    生成一个 'a' 的数量为 k 的整数倍的正则表达式。
-    例如 k=3: (b*ab*ab*a)*b*
-    """
-    # 构造核心的 a 序列，并在中间和两端穿插 b*
+    """生成一个 'a' 的数量为 k 的整数倍的正则表达式。"""
     core = "b*a" * k
-    # 加上克林闭包，并在最后补上 b* 以允许以 b 结尾
-    regex = f"({core})*b*"
-    return regex
+    return f"({core})*b*"
+
 
 if __name__ == "__main__":
-    cyclic_regex = generate_cyclic_group_regex(50)
-    # benchmark(cyclic_regex)
-    # 热身测试：简单的结构
-    # regex = "(a|b)*aab"
-    # regular language
-    regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
+    # regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
+
+    # 常用测试样例：
+    # regex = generate_cyclic_group_regex(50)
+    regex = "(a|b)*aab"
     # regex = "aab"
     # regex = "(aa|bbb)*"
     # regex = "(ab)*"
-
-    # regex = "(a|b)*a"
-    # regex = "(a|b)*aab"
     # regex = "b*(ab*ab*)*"
     # regex = "(b*ab*ab*a)*b*"
-    # regex = "a"*10 + "b"
+    # regex = "a" * 10 + "b"
 
-
-    # alphabet = {'a', 'b', 'c'}
-    # regex = "(a|b)*a"
-    # regex = "(a|b|c)*bac(a|b|c)*caca(a|b|c)*cc"
-    # regex = "(c|ab|aaca)*(a|c|aba)(aca|b|aa)*(aa|ca|ab)(c|ab|aaca)*|c*"
-    # benchmark(regex,True,alphabet)
-    benchmark(regex, True)
+    benchmark(regex, debug_mode=True)
