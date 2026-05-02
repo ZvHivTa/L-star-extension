@@ -1,5 +1,8 @@
 import time
+from collections import deque
 from dataclasses import dataclass
+
+from automata.fa.dfa import DFA
 
 from classic_lstar_learner import ClassicLearner
 from classic_lstar_oracle import ClassicOracle
@@ -19,13 +22,15 @@ class BaselineResult:
     learner: ClassicLearner
     oracle: ClassicOracle
     monoid_size: int
+    monoid_dfa: DFA
     lstar_time: float
     monoid_time: float
+    monoid_dfa_build_time: float
 
     @property
     def total_time(self):
         """经典 L* 学习时间加上 DFA 转 monoid 时间。"""
-        return self.lstar_time + self.monoid_time
+        return self.lstar_time + self.monoid_time + self.monoid_dfa_build_time
 
 
 @dataclass
@@ -61,17 +66,95 @@ def run_classic_baseline(target_dfa, alphabet):
     learned_dfa = classic_learner.learn()
     lstar_time = time.perf_counter() - start_lstar
 
-    tool_oracle = Oracle(target_dfa, max_ce_length=1000)
     start_monoid = time.perf_counter()
-    monoid_size, _ = tool_oracle._compute_transition_monoid_for_test(learned_dfa)
+    monoid_elements, base_trans, initial_index, final_indices = compute_transition_monoid_data(learned_dfa, alphabet)
     monoid_time = time.perf_counter() - start_monoid
+
+    start_monoid_dfa = time.perf_counter()
+    monoid_dfa = build_monoid_dfa(monoid_elements, base_trans, initial_index, final_indices, alphabet)
+    monoid_dfa_build_time = time.perf_counter() - start_monoid_dfa
 
     return BaselineResult(
         learner=classic_learner,
         oracle=classic_oracle,
-        monoid_size=monoid_size,
+        monoid_size=len(monoid_elements),
+        monoid_dfa=monoid_dfa,
         lstar_time=lstar_time,
         monoid_time=monoid_time,
+        monoid_dfa_build_time=monoid_dfa_build_time,
+    )
+
+
+def compute_transition_monoid_data(dfa, alphabet):
+    """Return transition monoid elements and the metadata needed to build its DFA."""
+    alphabet = sorted(alphabet)
+    states = sorted(list(dfa.states))
+    state_to_idx = {state: idx for idx, state in enumerate(states)}
+    needs_dead_state = any(len(dfa.transitions.get(state, {})) < len(alphabet) for state in states)
+
+    dead_state_idx = len(states) if needs_dead_state else -1
+    vector_len = len(states) + 1 if needs_dead_state else len(states)
+    base_trans = {}
+
+    for char in alphabet:
+        trans_vec = []
+        for state in states:
+            if char in dfa.transitions.get(state, {}):
+                next_state = dfa.transitions[state][char]
+                trans_vec.append(state_to_idx[next_state])
+            else:
+                trans_vec.append(dead_state_idx)
+
+        if needs_dead_state:
+            trans_vec.append(dead_state_idx)
+
+        base_trans[char] = tuple(trans_vec)
+
+    identity = tuple(range(vector_len))
+    monoid_elements = {identity}
+    queue = deque([identity])
+
+    while queue:
+        current_vec = queue.popleft()
+        for char in alphabet:
+            base_vec = base_trans[char]
+            new_vec = tuple(base_vec[index] for index in current_vec)
+            if new_vec not in monoid_elements:
+                monoid_elements.add(new_vec)
+                queue.append(new_vec)
+
+    initial_index = state_to_idx[dfa.initial_state]
+    final_indices = {state_to_idx[state] for state in dfa.final_states}
+    return monoid_elements, base_trans, initial_index, final_indices
+
+
+def build_monoid_dfa(monoid_elements, base_trans, initial_index, final_indices, alphabet):
+    """Build the Cayley-style DFA whose states are transition monoid elements."""
+    alphabet = sorted(alphabet)
+    sorted_elements = sorted(monoid_elements)
+    element_to_state = {element: f"m{idx}" for idx, element in enumerate(sorted_elements)}
+    transitions = {state: {} for state in element_to_state.values()}
+
+    for element in sorted_elements:
+        current_state = element_to_state[element]
+        for char in alphabet:
+            base_vec = base_trans[char]
+            next_element = tuple(base_vec[index] for index in element)
+            transitions[current_state][char] = element_to_state[next_element]
+
+    identity = tuple(range(len(sorted_elements[0])))
+    final_states = {
+        element_to_state[element]
+        for element in sorted_elements
+        if element[initial_index] in final_indices
+    }
+
+    return DFA(
+        states=set(element_to_state.values()),
+        input_symbols=set(alphabet),
+        transitions=transitions,
+        initial_state=element_to_state[identity],
+        final_states=final_states,
     )
 
 
@@ -94,7 +177,13 @@ def build_integrated_learner(oracle, alphabet, debug_mode):
     if debug_mode:
         print("   [开启 Debug] 将详细记录每次表格的代数分裂轨迹...")
 
-    return Learner(oracle, alphabet, max_p_length=1, debug_mode=debug_mode)
+    return Learner(
+        oracle,
+        alphabet,
+        max_p_length=1,
+        debug_mode=debug_mode,
+        verbose=debug_mode,
+    )
 
 
 def print_header(regex_str):
@@ -113,6 +202,7 @@ def print_report(regex_str, target_dfa, baseline, integrated):
     print("【代数特征】")
     print(f"  - Minimal DFA 状态数 : {len(target_dfa.states)}")
     print(f"  - Monoid 规模        : {baseline.monoid_size}")
+    print(f"  - Monoid DFA 状态数  : {len(baseline.monoid_dfa.states)}")
 
     print_baseline_report(baseline)
     print_integrated_report(integrated)
@@ -127,7 +217,8 @@ def print_baseline_report(result):
     print(f"  - 阶段1 (L* 学 DFA)  : {result.lstar_time:.6f} s")
     print(f"      └─ 其中 EQ 耗时  : {result.learner.eq_time:.6f} s (占比 {eq_percent:.1f}%)")
     print(f"  - 阶段2 (转 Monoid)  : {result.monoid_time:.6f} s")
-    print(f"  - 阶段1+2 总耗时     : {result.total_time:.6f} s")
+    print(f"  - 阶段3 (Monoid DFA) : {result.monoid_dfa_build_time:.6f} s")
+    print(f"  - 阶段1+2+3 总耗时   : {result.total_time:.6f} s")
     print(f"  - MQ 查询总数        : {result.oracle.mq_count} 次")
     print(f"  - EQ 查询总数        : {result.learner.eq_count} 次")
 
@@ -143,6 +234,7 @@ def print_integrated_report(result):
     print(f"      └─ 其中 EQ 耗时  : {learner.eq_time:.6f} s (占比 {eq_percent:.1f}%)")
     print(f"  - MQ 查询总数        : {learner.mq_count} 次")
     print(f"  - EQ 查询总数        : {eq_count} 次")
+    print(f"  - 跳过 EQ 次数        : {learner.skipped_eq_count} 次")
 
 
 def print_conclusion(baseline_time, integrated_time):
@@ -168,16 +260,17 @@ def generate_cyclic_group_regex(k):
 
 
 if __name__ == "__main__":
-    # regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
+    regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
 
     # 常用测试样例：
-    # regex = generate_cyclic_group_regex(50)
-    regex = "(a|b)*aab"
+    regex = generate_cyclic_group_regex(50)
+    # regex = "(a|b)*aab"
     # regex = "aab"
     # regex = "(aa|bbb)*"
     # regex = "(ab)*"
     # regex = "b*(ab*ab*)*"
     # regex = "(b*ab*ab*a)*b*"
     # regex = "a" * 10 + "b"
-
-    benchmark(regex, debug_mode=True)
+    # regex = "a" * 20 + "b"
+    # regex = "a" * 30 + "b"
+    benchmark(regex, debug_mode=False)

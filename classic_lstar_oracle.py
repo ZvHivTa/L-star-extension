@@ -1,4 +1,6 @@
 # 文件名: classic_oracle.py
+from collections import deque
+
 from automata.fa.dfa import DFA
 
 
@@ -42,11 +44,11 @@ class ClassicOracle:
             return ""
 
         # 队列里存的是：(当前状态, 走到这里的字符串路径)
-        queue = [(initial_state, "")]
+        queue = deque([(initial_state, "")])
         visited = {initial_state}
 
         while queue:
-            curr_state, path = queue.pop(0)
+            curr_state, path = queue.popleft()
 
             # 遍历当前状态能走的边
             transitions = diff_dfa.transitions.get(curr_state, {})

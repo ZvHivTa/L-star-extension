@@ -17,18 +17,24 @@ class Learner:
         ce_strategy="breakpoint",
         debug_mode=False,
         debug_dir="debug_snapshots",
+        verbose=True,
     ):
         self.teacher = teacher
         self.alphabet = sorted(list(alphabet))
         self.ce_strategy = ce_strategy
         self.debug_mode = debug_mode
         self.debug_dir = debug_dir
+        self.verbose = verbose
         self.max_p_length = max_p_length
 
         self.query_cache = {}
         self.mq_count = 0
 
         self.reset_learning_state()
+
+    def log(self, *args, **kwargs):
+        if self.verbose:
+            print(*args, **kwargs)
 
     # ------------------------------------------------------------------
     # 初始化与通用工具
@@ -44,6 +50,11 @@ class Learner:
         self.filled_rows = set()
         self.processed_P = set()
         self.processed_S = set()
+        self.row_cache = {}
+        self.sorted_p_cache = None
+        self.sorted_s_cache = None
+        self.sorted_i_cache = None
+        self.right_extensions_cache = None
 
         self.total_start_time = 0.0
         self.total_end_time = 0.0
@@ -51,6 +62,8 @@ class Learner:
         self.monoid_probe_time = 0.0
         self.eq_time = 0.0
         self.eq_count = 0
+        self.language_confirmed = False
+        self.skipped_eq_count = 0
 
     def prepare_debug_dir(self):
         """清空并重新创建 debug 快照目录。"""
@@ -58,15 +71,42 @@ class Learner:
             shutil.rmtree(self.debug_dir)
 
         os.makedirs(self.debug_dir)
-        print(f"[Debug] 已创建快照目录: {self.debug_dir}")
+        self.log(f"[Debug] 已创建快照目录: {self.debug_dir}")
 
     def sort_key(self, value):
         """字符串集合的统一排序规则：先长度，再字典序。"""
         return len(value), value
 
+    def invalidate_context_cache(self, rows=False, i=False):
+        """Clear cached orderings and row vectors after P/S/I changes."""
+        if rows:
+            self.row_cache.clear()
+            self.sorted_p_cache = None
+            self.sorted_s_cache = None
+        if i:
+            self.sorted_i_cache = None
+            self.right_extensions_cache = None
+
+    def sorted_p(self):
+        if self.sorted_p_cache is None:
+            self.sorted_p_cache = tuple(sorted(self.P))
+        return self.sorted_p_cache
+
+    def sorted_s(self):
+        if self.sorted_s_cache is None:
+            self.sorted_s_cache = tuple(sorted(self.S))
+        return self.sorted_s_cache
+
+    def sorted_i(self):
+        if self.sorted_i_cache is None:
+            self.sorted_i_cache = tuple(sorted(self.I, key=self.sort_key))
+        return self.sorted_i_cache
+
     def right_extensions(self):
         """生成当前主区 I 的右扩展 I·Σ。"""
-        return {i + a for i in self.I for a in self.alphabet}
+        if self.right_extensions_cache is None:
+            self.right_extensions_cache = {i + a for i in self.I for a in self.alphabet}
+        return self.right_extensions_cache
 
     def needed_rows(self):
         """当前观测表需要维护的所有行：主区 I 加右扩展。"""
@@ -92,13 +132,20 @@ class Learner:
 
     def get_row(self, i):
         """读取行 i 在所有 (p, s) 语境下的布尔特征向量。"""
+        cached = self.row_cache.get(i)
+        if cached is not None:
+            return cached
+
         row_values = []
-        for p in sorted(self.P):
-            for s in sorted(self.S):
+        for p in self.sorted_p():
+            for s in self.sorted_s():
                 if (i, p, s) not in self.table:
                     self._fill_cell(i, p, s)
                 row_values.append(self.table[(i, p, s)])
-        return tuple(row_values)
+
+        row = tuple(row_values)
+        self.row_cache[i] = row
+        return row
 
     def fill_table(self):
         """增量填表：只补新行、新 P 列或新 S 列造成的缺口。"""
@@ -151,8 +198,9 @@ class Learner:
                 continue
 
             if self.get_row(ext) not in rows_in_I:
-                print(f"  [闭合拦截] 发现新状态: '{ext}'，将其提拔进主区 I")
+                self.log(f"  [闭合拦截] 发现新状态: '{ext}'，将其提拔进主区 I")
                 self.I.add(ext)
+                self.invalidate_context_cache(i=True)
                 return False
 
         return True
@@ -176,22 +224,18 @@ class Learner:
     def build_state_maps(self):
         """建立“行向量 -> 状态名”和“行向量 -> 代表元”的映射。"""
         row_to_state = {}
-        row_to_rep = {}
-
-        unique_rows = sorted({self.get_row(i) for i in self.I})
-        for row in unique_rows:
-            representative = self.representative_for_row(row)
+        row_to_rep = self.row_representatives()
+        for row, representative in sorted(row_to_rep.items()):
             state_name = "q0" if representative == "" else representative
 
             row_to_state[row] = state_name
-            row_to_rep[row] = representative
             self.state_to_rep[state_name] = representative
 
         return row_to_state, row_to_rep
 
     def representative_for_row(self, row):
         """为一个行向量选择 I 中最短、最稳定的代表字符串。"""
-        candidates = sorted(self.I, key=self.sort_key)
+        candidates = self.sorted_i()
         return next(i for i in candidates if self.get_row(i) == row)
 
     def build_final_states(self, row_to_rep, row_to_state):
@@ -217,8 +261,9 @@ class Learner:
     def ensure_monoid_consistency(self):
         """内部左一致性自检：防止 DFA 合并破坏 syntactic monoid 的左语境行为。"""
         row_to_rep = self.row_representatives()
+        context_cache = {}
 
-        for u in self.I:
+        for u in self.sorted_i():
             for char in self.alphabet:
                 boundary = u + char
                 representative = row_to_rep.get(self.get_row(boundary))
@@ -226,32 +271,59 @@ class Learner:
                 if representative is None or boundary == representative:
                     continue
 
-                if not self.check_boundary_consistency(boundary, representative):
+                if not self.check_boundary_consistency(boundary, representative, context_cache):
                     return False
 
         return True
 
+    def lookup_context_membership(self, left, middle, suffix, context_cache):
+        """Read MQ(left + middle + suffix), reusing existing table cells when possible."""
+        key = (left, middle, suffix)
+        if key in context_cache:
+            return context_cache[key]
+
+        if left in self.P and suffix in self.S:
+            cell = self.table.get((middle, left, suffix))
+            if cell is not None:
+                context_cache[key] = cell
+                return cell
+
+        shifted_middle = left + middle
+        if suffix in self.S:
+            cell = self.table.get((shifted_middle, "", suffix))
+            if cell is not None:
+                context_cache[key] = cell
+                return cell
+
+        value = self._ask_teacher(left + middle + suffix)
+        context_cache[key] = value
+        return value
+
     def row_representatives(self):
         """为当前 I 中每个行向量建立一个代表元。"""
         row_to_rep = {}
-        for i in sorted(self.I, key=self.sort_key):
+        for i in self.sorted_i():
             row_to_rep.setdefault(self.get_row(i), i)
         return row_to_rep
 
-    def check_boundary_consistency(self, boundary, representative):
+    def check_boundary_consistency(self, boundary, representative, context_cache):
         """检查一个边界串和其代表元在所有已知左/右语境中是否一致。"""
-        for left in self.I:
-            for suffix in self.S:
-                q_boundary = self._ask_teacher(left + boundary + suffix)
-                q_rep = self._ask_teacher(left + representative + suffix)
+        for left in self.sorted_i():
+            if left in self.P:
+                continue
+
+            for suffix in self.sorted_s():
+                q_boundary = self.lookup_context_membership(left, boundary, suffix, context_cache)
+                q_rep = self.lookup_context_membership(left, representative, suffix, context_cache)
 
                 if q_boundary != q_rep:
-                    print(
+                    self.log(
                         f"  🚨 [代数拦截] 左前缀 '{left}' 在后缀 '{suffix}' 下，"
                         f"拆散了边界 '{boundary}' 和代表元 '{representative}'"
                     )
-                    print(f"               >> 行动: 将 '{left}' 加入 P 集合！")
+                    self.log(f"               >> 行动: 将 '{left}' 加入 P 集合！")
                     self.P.add(left)
+                    self.invalidate_context_cache(rows=True)
                     return False
 
         return True
@@ -276,6 +348,7 @@ class Learner:
         for char in counterexample:
             prefix += char
             self.P.add(prefix)
+        self.invalidate_context_cache(rows=True)
 
     def handle_breakpoint_counterexample(self, counterexample, hypothesis):
         """Rivest-Schapire 二分断点策略，只加入关键区分后缀。"""
@@ -285,17 +358,19 @@ class Learner:
         if low is None:
             self.S.add(counterexample)
             self.P.add(counterexample)
+            self.invalidate_context_cache(rows=True)
             return
 
         distinguishing_suffix = counterexample[high:]
         prefix_to_add = reps[low]
 
-        print(
+        self.log(
             f"  ⚔️ [反例拦截] 收反例 '{counterexample}'! "
             f"二分断点定位: '{prefix_to_add}' | '{distinguishing_suffix}'"
         )
-        print(f"               >> 行动: 将后缀 '{distinguishing_suffix}' 加入 S")
+        self.log(f"               >> 行动: 将后缀 '{distinguishing_suffix}' 加入 S")
         self.S.add(distinguishing_suffix)
+        self.invalidate_context_cache(rows=True)
 
     def trace_hypothesis_representatives(self, word, hypothesis):
         """沿假设 DFA 读取反例，记录每一步状态对应的代表元。"""
@@ -335,7 +410,7 @@ class Learner:
         """把当前观测表保存为 debug_snapshots/table_step_xxx.txt。"""
         filename = os.path.join(self.debug_dir, f"table_step_{step:03d}.txt")
         self.display_observation_table(filename)
-        print(f"\n▶️ [Step {step:03d}] 表格已更新，快照已保存")
+        self.log(f"\n▶️ [Step {step:03d}] 表格已更新，快照已保存")
 
     def save_hypothesis_snapshot(self, hypothesis, step):
         """把当前假设 DFA 保存成 Graphviz DOT 文本。"""
@@ -344,7 +419,7 @@ class Learner:
 
     def print_acceptor(self, dfa_obj, filename="hypothesis"):
         """将假设 DFA 导出为 Graphviz DOT 文本文件。"""
-        filepath = f"{filename}.txt"
+        filepath = f"{filename}.dot"
 
         with open(filepath, "w", encoding="utf-8") as f:
             f.write("digraph G {\n")
@@ -363,8 +438,7 @@ class Learner:
 
             f.write("}\n")
 
-        print(f"  📝 [纯文本出图] DOT 源码已保存至: {filepath}")
-        print("               >> 请将文件内容复制到 https://edotor.net/ 查看")
+        self.log(f"  [DOT] Hypothesis automaton saved to: {filepath}")
 
     def display_observation_table(self, filename="observation_table.txt"):
         """把当前 3D 观测表导出成便于阅读的文本表格。"""
@@ -453,7 +527,7 @@ class Learner:
 
         step = 1
         if self.debug_mode:
-            print("\n🚀 [Learner] 启动学习引擎 (快照模式)...")
+            self.log("\n🚀 [Learner] 启动学习引擎 (快照模式)...")
 
         while True:
             hypothesis = self.run_table_phase(step)
@@ -465,12 +539,16 @@ class Learner:
             if self.debug_mode:
                 self.save_hypothesis_snapshot(hypothesis, step - 1)
 
-            if self.run_equivalence_phase(hypothesis):
-                continue
+            if not self.language_confirmed:
+                if self.run_equivalence_phase(hypothesis):
+                    continue
+            else:
+                self.skipped_eq_count += 1
+                self.log("  [交卷] 语言等价性已确认，跳过本轮 EQ，直接进入代数自检...")
 
             if self.run_monoid_phase():
                 self.total_end_time = time.perf_counter()
-                print("\n🎉 [完结] 句法幺半群代数结构完美收敛！")
+                self.log("\n🎉 [完结] 句法幺半群代数结构完美收敛！")
                 return hypothesis
 
     def run_table_phase(self, step):
@@ -491,23 +569,25 @@ class Learner:
 
     def run_equivalence_phase(self, hypothesis):
         """向 teacher 发起 EQ；若收到反例则处理并返回 True。"""
-        print("  [交卷] 闭合检查通过，向 Oracle 发起 EQ...")
+        self.log("  [交卷] 闭合检查通过，向 Oracle 发起 EQ...")
         start = time.perf_counter()
         counterexample = self.teacher.equivalence_query(hypothesis)
         self.eq_time += time.perf_counter() - start
         self.eq_count += 1
 
         if counterexample is None:
+            self.language_confirmed = True
             return False
 
         start = time.perf_counter()
+        self.language_confirmed = False
         self.handle_counterexample(counterexample, hypothesis)
         self.lstar_pure_time += time.perf_counter() - start
         return True
 
     def run_monoid_phase(self):
         """EQ 通过后执行内部 monoid 左一致性自检。"""
-        print("  [自检] EQ 及格！启动内部左一致性自检...")
+        self.log("  [自检] EQ 及格！启动内部左一致性自检...")
         start = time.perf_counter()
         consistent = self.ensure_monoid_consistency()
         self.monoid_probe_time += time.perf_counter() - start
