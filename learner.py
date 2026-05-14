@@ -15,13 +15,22 @@ class Learner:
         alphabet,
         max_p_length=0,
         ce_strategy="breakpoint",
+        monoid_strategy="post_check",
         debug_mode=False,
         debug_dir="debug_snapshots",
         verbose=True,
     ):
+        valid_monoid_strategies = {"post_check", "promote_to_p_monoid_check"}
+        if monoid_strategy not in valid_monoid_strategies:
+            raise ValueError(
+                f"Unknown monoid_strategy '{monoid_strategy}'. "
+                f"Expected one of {sorted(valid_monoid_strategies)}."
+            )
+
         self.teacher = teacher
         self.alphabet = sorted(list(alphabet))
         self.ce_strategy = ce_strategy
+        self.monoid_strategy = monoid_strategy
         self.debug_mode = debug_mode
         self.debug_dir = debug_dir
         self.verbose = verbose
@@ -64,6 +73,7 @@ class Learner:
         self.eq_count = 0
         self.language_confirmed = False
         self.skipped_eq_count = 0
+        self.promoted_i_to_p_count = 0
 
     def prepare_debug_dir(self):
         """清空并重新创建 debug 快照目录。"""
@@ -200,7 +210,12 @@ class Learner:
             if self.get_row(ext) not in rows_in_I:
                 self.log(f"  [闭合拦截] 发现新状态: '{ext}'，将其提拔进主区 I")
                 self.I.add(ext)
-                self.invalidate_context_cache(i=True)
+                if self.monoid_strategy == "promote_to_p_monoid_check":
+                    self.P.add(ext)
+                    self.promoted_i_to_p_count += 1
+                    self.invalidate_context_cache(rows=True, i=True)
+                else:
+                    self.invalidate_context_cache(i=True)
                 return False
 
         return True

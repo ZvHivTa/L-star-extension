@@ -1,109 +1,141 @@
-# 文件名: classic_learner.py
 import time
+
 from automata.fa.dfa import DFA
 
 
 class ClassicLearner:
+    """Classic RS-style L* learner with an I x S observation table."""
+
     def __init__(self, oracle, alphabet):
         self.oracle = oracle
         self.alphabet = sorted(list(alphabet))
 
-        # 经典 L* 的两大核心集合: S (行前缀/状态代表), E (列后缀/区分实验)
-        self.S = {''}
-        self.E = {''}
-        self.table = {}  # 单元格缓存，避免重复查询
-        self.state_to_rep = {}  # 记录 DFA 状态对应的最短代表前缀 (RS算法需要)
+        # Classic observation table:
+        # I: candidate state representatives / row prefixes
+        # S: distinguishing suffixes / experiments
+        self.I = {""}
+        self.S = {""}
+        self.table = {}
+        self.state_to_rep = {}
+        self.row_cache = {}
+        self.sorted_i_cache = None
+        self.sorted_s_cache = None
 
-    def _ask(self, s, e):
-        """带有单元格缓存的查询"""
-        if (s, e) not in self.table:
-            self.table[(s, e)] = self.oracle.membership_query(s + e)
-        return self.table[(s, e)]
+    def sort_key(self, value):
+        return len(value), value
 
-    def _get_row(self, s):
-        """获取行向量 (使用最朴素的 Tuple)"""
-        sorted_E = sorted(list(self.E), key=lambda x: (len(x), x))
-        return tuple(self._ask(s, e) for e in sorted_E)
+    def invalidate_cache(self, rows=False, i=False, s=False):
+        if rows:
+            self.row_cache.clear()
+        if i:
+            self.sorted_i_cache = None
+        if s:
+            self.sorted_s_cache = None
+
+    def sorted_i(self):
+        if self.sorted_i_cache is None:
+            self.sorted_i_cache = tuple(sorted(self.I, key=self.sort_key))
+        return self.sorted_i_cache
+
+    def sorted_s(self):
+        if self.sorted_s_cache is None:
+            self.sorted_s_cache = tuple(sorted(self.S, key=self.sort_key))
+        return self.sorted_s_cache
+
+    def _ask(self, i, suffix):
+        """Return T[i, suffix] = MQ(i + suffix), with cell caching."""
+        if (i, suffix) not in self.table:
+            self.table[(i, suffix)] = self.oracle.membership_query(i + suffix)
+        return self.table[(i, suffix)]
+
+    def _get_row(self, i):
+        """Return the row vector of i over all current suffixes S."""
+        cached = self.row_cache.get(i)
+        if cached is not None:
+            return cached
+
+        row = tuple(self._ask(i, suffix) for suffix in self.sorted_s())
+        self.row_cache[i] = row
+        return row
 
     def _is_closed(self):
-        """封闭性检查: S·Sigma 中的行必须都在 S 中见过"""
-        rows_in_S = {self._get_row(s) for s in self.S}
+        """Every row in I.Sigma must already be represented by some row in I."""
+        rows_in_i = {self._get_row(i) for i in self.I}
 
-        for s in sorted(list(self.S), key=lambda x: (len(x), x)):
-            for a in self.alphabet:
-                sa = s + a
-                if self._get_row(sa) not in rows_in_S:
-                    self.S.add(sa)
+        for i in self.sorted_i():
+            for char in self.alphabet:
+                extension = i + char
+                if self._get_row(extension) not in rows_in_i:
+                    self.I.add(extension)
+                    self.invalidate_cache(i=True)
                     return False
         return True
 
     def _is_consistent(self):
-        """一致性检查: 行为相同的两行，接上同一个字母后，行为依然要相同"""
-        S_list = sorted(list(self.S), key=lambda x: (len(x), x))
+        """Classic table consistency check, kept for reference."""
+        sorted_i = self.sorted_i()
 
-        for i in range(len(S_list)):
-            for j in range(i + 1, len(S_list)):
-                s1, s2 = S_list[i], S_list[j]
+        for left_idx in range(len(sorted_i)):
+            for right_idx in range(left_idx + 1, len(sorted_i)):
+                first, second = sorted_i[left_idx], sorted_i[right_idx]
 
-                if self._get_row(s1) == self._get_row(s2):
-                    for a in self.alphabet:
-                        row_s1a = self._get_row(s1 + a)
-                        row_s2a = self._get_row(s2 + a)
+                if self._get_row(first) == self._get_row(second):
+                    for char in self.alphabet:
+                        first_ext_row = self._get_row(first + char)
+                        second_ext_row = self._get_row(second + char)
 
-                        if row_s1a != row_s2a:
-                            # 找出是哪一个已有的后缀 e 区分了它们
-                            sorted_E = sorted(list(self.E), key=lambda x: (len(x), x))
-                            for idx, e in enumerate(sorted_E):
-                                if row_s1a[idx] != row_s2a[idx]:
-                                    # 将 a+e 作为全新的精确后缀加入 E
-                                    self.E.add(a + e)
+                        if first_ext_row != second_ext_row:
+                            for idx, suffix in enumerate(self.sorted_s()):
+                                if first_ext_row[idx] != second_ext_row[idx]:
+                                    self.S.add(char + suffix)
+                                    self.invalidate_cache(rows=True, s=True)
                                     return False
         return True
 
     def _build_hypothesis(self):
-        """构建假设 DFA"""
+        """Build the current hypothesis DFA from the I x S table."""
         states = set()
         row_to_state = {}
         self.state_to_rep = {}
 
-        unique_rows = sorted(list({self._get_row(s) for s in self.S}))
-        for idx, r in enumerate(unique_rows):
+        unique_rows = sorted(list({self._get_row(i) for i in self.I}))
+        sorted_i = self.sorted_i()
+        for idx, row in enumerate(unique_rows):
             state_name = f"q{idx}"
             states.add(state_name)
-            row_to_state[r] = state_name
+            row_to_state[row] = state_name
 
-            # 找到对应这个行的最短前缀，作为状态的代表 (Representative)
-            rep = next(s for s in sorted(list(self.S), key=lambda x: (len(x), x)) if self._get_row(s) == r)
-            self.state_to_rep[state_name] = rep
+            representative = next(i for i in sorted_i if self._get_row(i) == row)
+            self.state_to_rep[state_name] = representative
 
-        initial_state = row_to_state[self._get_row('')]
+        initial_state = row_to_state[self._get_row("")]
         final_states = set()
-        transitions = {st: {} for st in states}
+        transitions = {state: {} for state in states}
 
-        for s in self.S:
-            row_s = self._get_row(s)
-            curr_state = row_to_state[row_s]
+        for i in self.I:
+            current_row = self._get_row(i)
+            current_state = row_to_state[current_row]
 
-            if self._ask(s, ''):
-                final_states.add(curr_state)
+            if self._ask(i, ""):
+                final_states.add(current_state)
 
-            for a in self.alphabet:
-                row_sa = self._get_row(s + a)
-                transitions[curr_state][a] = row_to_state[row_sa]
+            for char in self.alphabet:
+                next_row = self._get_row(i + char)
+                transitions[current_state][char] = row_to_state[next_row]
 
         return DFA(
             states=states,
             input_symbols=set(self.alphabet),
             transitions=transitions,
             initial_state=initial_state,
-            final_states=final_states
+            final_states=final_states,
         )
 
     def learn(self):
-        """带有 Rivest & Schapire (RS) 二分查找优化的 L* 循环"""
+        """Run the RS-style L* loop using binary-search counterexample handling."""
         start_time = time.perf_counter()
-        self.eq_time = 0.0  # <--- 【新增】初始化 EQ 耗时统计
-        self.eq_count = 0  # <--- 【新增】顺便统计一下 EQ 调用次数
+        self.eq_time = 0.0
+        self.eq_count = 0
 
         while True:
             if not self._is_closed():
@@ -112,53 +144,43 @@ class ClassicLearner:
             hypothesis = self._build_hypothesis()
             eq_start = time.perf_counter()
             counterexample = self.oracle.equivalence_query(hypothesis)
-            self.eq_time += (time.perf_counter() - eq_start)
+            self.eq_time += time.perf_counter() - eq_start
             self.eq_count += 1
 
             if counterexample is None:
                 self.learn_time = time.perf_counter() - start_time
                 return hypothesis
 
-            # ==============================================================
-            # 【核心】Rivest & Schapire (RS) 精准后缀查找算法 (二分法)
-            # ==============================================================
-            w = counterexample
-            m = len(w)
+            word = counterexample
+            word_length = len(word)
 
-            # 1. 在当前的假设 DFA 中，描绘出吃掉这个反例的状态轨迹
             reps = []
-            curr = hypothesis.initial_state
-            reps.append(self.state_to_rep[curr])
-            for char in w:
-                curr = hypothesis.transitions[curr][char]
-                reps.append(self.state_to_rep[curr])
-
-            # reps[i] 代表在假设中，读取了 w 的前 i 个字符后，到达的状态的代表字符串。
-            # Q_i 的定义: Oracle 对 ( reps[i] + w[i:] ) 的判定结果。
+            current = hypothesis.initial_state
+            reps.append(self.state_to_rep[current])
+            for char in word:
+                current = hypothesis.transitions[current][char]
+                reps.append(self.state_to_rep[current])
 
             low = 0
-            high = m
+            high = word_length
 
-            # 对于合法的反例，Q_0 一定不等于 Q_m。
-            Q_low = self.oracle.membership_query(reps[low] + w[low:])
-            Q_high = self.oracle.membership_query(reps[high] + w[high:])
+            q_low = self.oracle.membership_query(reps[low] + word[low:])
+            q_high = self.oracle.membership_query(reps[high] + word[high:])
 
-            # 2. 二分查找断点 (Breakpoint)
-            if Q_low != Q_high:
+            if q_low != q_high:
                 while low + 1 < high:
                     mid = (low + high) // 2
-                    Q_mid = self.oracle.membership_query(reps[mid] + w[mid:])
+                    q_mid = self.oracle.membership_query(reps[mid] + word[mid:])
 
-                    if Q_mid == Q_low:
+                    if q_mid == q_low:
                         low = mid
                     else:
                         high = mid
 
-                # 3. 提取出引发分歧的后缀
-                # 断点发生在 low 到 high 之间。此时的剩余后缀 w[high:] 即为精准后缀！
-                distinguishing_suffix = w[high:]
-                self.E.add(distinguishing_suffix)
+                distinguishing_suffix = word[high:]
+                self.S.add(distinguishing_suffix)
+                self.invalidate_cache(rows=True, s=True)
             else:
-                # 理论上不会发生，除非 Oracle 不一致，作为 Fallback 全加进去
-                for i in range(1, m + 1):
-                    self.E.add(w[-i:])
+                for length in range(1, word_length + 1):
+                    self.S.add(word[-length:])
+                self.invalidate_cache(rows=True, s=True)

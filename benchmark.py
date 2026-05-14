@@ -1,3 +1,5 @@
+import argparse
+import sys
 import time
 from collections import deque
 from dataclasses import dataclass
@@ -13,6 +15,11 @@ from regex_converter import regex_to_minimal_dfa
 
 DEFAULT_ALPHABET = {"a", "b"}
 OBSERVATION_TABLE_FILE = "observation_table.txt"
+DEFAULT_REGEX = None
+
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 
 
 @dataclass
@@ -37,22 +44,47 @@ class BaselineResult:
 class IntegratedResult:
     """保存一体化 learner 的实例和整体运行时间。"""
 
+    name: str
+    strategy: str
     learner: object
     total_time: float
+    table_file: str
 
 
-def benchmark(regex_str, debug_mode=False, alphabet=None):
+def benchmark(regex_str, debug_mode=False, alphabet=None, integrated_strategy="both"):
     """运行一次完整实验：构造目标 DFA、跑两种算法、输出对比报告。"""
     alphabet = DEFAULT_ALPHABET if alphabet is None else set(alphabet)
+    strategies = normalize_integrated_strategies(integrated_strategy)
 
     print_header(regex_str)
     target_dfa = regex_to_minimal_dfa(regex_str, alphabet)
 
     baseline = run_classic_baseline(target_dfa, alphabet)
-    integrated = run_integrated_learner(target_dfa, alphabet, debug_mode)
+    integrated_results = [
+        run_integrated_learner(target_dfa, alphabet, debug_mode, strategy)
+        for strategy in strategies
+    ]
 
-    integrated.learner.display_observation_table(OBSERVATION_TABLE_FILE)
-    print_report(regex_str, target_dfa, baseline, integrated)
+    for result in integrated_results:
+        result.learner.display_observation_table(result.table_file)
+
+    print_report(regex_str, target_dfa, baseline, integrated_results)
+
+
+def normalize_integrated_strategies(integrated_strategy):
+    """Return the integrated learner strategies requested by the benchmark caller."""
+    if integrated_strategy == "both":
+        return ("post_check", "promote_to_p_monoid_check")
+    if isinstance(integrated_strategy, str):
+        strategies = (integrated_strategy,)
+    else:
+        strategies = tuple(integrated_strategy)
+
+    valid = {"post_check", "promote_to_p_monoid_check"}
+    unknown = set(strategies) - valid
+    if unknown:
+        raise ValueError(f"Unknown integrated strategy: {sorted(unknown)}")
+    return strategies
 
 
 def run_classic_baseline(target_dfa, alphabet):
@@ -158,21 +190,40 @@ def build_monoid_dfa(monoid_elements, base_trans, initial_index, final_indices, 
     )
 
 
-def run_integrated_learner(target_dfa, alphabet, debug_mode):
-    """执行改进版一体化 learner，直接在学习循环中加入 monoid 相关检查。"""
-    print("\n>> 开始执行: 过程 B [改进版一体化 L* (位图化 + 纵向扩张)]")
+def run_integrated_learner(target_dfa, alphabet, debug_mode, strategy):
+    name = integrated_strategy_name(strategy)
+    print(f"\n>> Start Process B [{name}]")
 
     oracle = Oracle(target_dfa)
-    learner = build_integrated_learner(oracle, alphabet, debug_mode)
+    learner = build_integrated_learner(oracle, alphabet, debug_mode, strategy)
 
     start = time.perf_counter()
     learner.learn()
     total_time = time.perf_counter() - start
 
-    return IntegratedResult(learner=learner, total_time=total_time)
+    table_file = (
+        OBSERVATION_TABLE_FILE
+        if strategy == "post_check"
+        else f"observation_table_{strategy}.txt"
+    )
+    return IntegratedResult(
+        name=name,
+        strategy=strategy,
+        learner=learner,
+        total_time=total_time,
+        table_file=table_file,
+    )
+
+def integrated_strategy_name(strategy):
+    """Human-readable label for an integrated learner strategy."""
+    names = {
+        "post_check": "Integrated L* + Monoid Consistency Check",
+        "promote_to_p_monoid_check": "Integrated L* + Promote I to P + Monoid Check",
+    }
+    return names[strategy]
 
 
-def build_integrated_learner(oracle, alphabet, debug_mode):
+def build_integrated_learner(oracle, alphabet, debug_mode, strategy):
     """构造一体化 learner；debug_mode 控制是否输出快照文件。"""
     if debug_mode:
         print("   [开启 Debug] 将详细记录每次表格的代数分裂轨迹...")
@@ -181,6 +232,7 @@ def build_integrated_learner(oracle, alphabet, debug_mode):
         oracle,
         alphabet,
         max_p_length=1,
+        monoid_strategy=strategy,
         debug_mode=debug_mode,
         verbose=debug_mode,
     )
@@ -193,7 +245,7 @@ def print_header(regex_str):
     print("*" * 65)
 
 
-def print_report(regex_str, target_dfa, baseline, integrated):
+def print_report(regex_str, target_dfa, baseline, integrated_results):
     """汇总目标自动机特征和两种算法的性能指标。"""
     print("\n" + "=" * 65)
     print(f"📊 最终对比报告 - 正则: {regex_str}")
@@ -205,8 +257,9 @@ def print_report(regex_str, target_dfa, baseline, integrated):
     print(f"  - Monoid DFA 状态数  : {len(baseline.monoid_dfa.states)}")
 
     print_baseline_report(baseline)
-    print_integrated_report(integrated)
-    print_conclusion(baseline.total_time, integrated.total_time)
+    for integrated in integrated_results:
+        print_integrated_report(integrated)
+    print_conclusion(baseline.total_time, integrated_results)
 
 
 def print_baseline_report(result):
@@ -229,22 +282,27 @@ def print_integrated_report(result):
     eq_percent = percent(learner.eq_time, result.total_time)
     eq_count = getattr(learner, "eq_count", "未统计")
 
-    print("\n【过程 B: 改进版一体化 L*】")
+    print(f"\n[Process B: {result.name}]")
+    print(f"  - Strategy              : {result.strategy}")
     print(f"  - 总耗时             : {result.total_time:.6f} s")
     print(f"      └─ 其中 EQ 耗时  : {learner.eq_time:.6f} s (占比 {eq_percent:.1f}%)")
     print(f"  - MQ 查询总数        : {learner.mq_count} 次")
     print(f"  - EQ 查询总数        : {eq_count} 次")
     print(f"  - 跳过 EQ 次数        : {learner.skipped_eq_count} 次")
+    print(f"  - Monoid check time     : {learner.monoid_probe_time:.6f} s")
+    print(f"  - I-promoted-to-P count : {learner.promoted_i_to_p_count}")
+    print(f"  - Observation table     : {result.table_file}")
 
 
-def print_conclusion(baseline_time, integrated_time):
+def print_conclusion(baseline_time, integrated_results):
     """根据总耗时给出本次实验的简单胜负判断。"""
     print("-" * 65)
-    if integrated_time < baseline_time:
-        speedup = baseline_time / integrated_time
-        print(f"🏆 结论: 你的算法赢了！比朴素基线快了 {speedup:.2f} 倍！")
+    fastest = min(integrated_results, key=lambda result: result.total_time)
+    if fastest.total_time < baseline_time:
+        speedup = baseline_time / fastest.total_time
+        print(f"Best integrated strategy: {fastest.strategy} ({speedup:.2f}x faster than baseline)")
     else:
-        print("💡 结论: 朴素基线依然领先，需要继续排查 Python 的循环开销。")
+        print(f"Baseline remains faster than the best integrated strategy ({fastest.strategy}).")
     print("=" * 65 + "\n")
 
 
@@ -259,18 +317,54 @@ def generate_cyclic_group_regex(k):
     return f"({core})*b*"
 
 
-if __name__ == "__main__":
-    regex = "()|(a|b)|(a|b)(a|b)|(a|b)(a|b)(a|b)b*"
-
+def default_regex():
+    if DEFAULT_REGEX is not None:
+        return DEFAULT_REGEX
     # 常用测试样例：
-    regex = generate_cyclic_group_regex(50)
+    regex = generate_cyclic_group_regex(70)
     # regex = "(a|b)*aab"
     # regex = "aab"
     # regex = "(aa|bbb)*"
+    # regex = "(aaa|bbb)*"
     # regex = "(ab)*"
+    # regex = "(ba)*"
     # regex = "b*(ab*ab*)*"
     # regex = "(b*ab*ab*a)*b*"
     # regex = "a" * 10 + "b"
     # regex = "a" * 20 + "b"
     # regex = "a" * 30 + "b"
-    benchmark(regex, debug_mode=False)
+    # regex = "(a|b)*abba"
+    # regex = "a" * 5 + "b"
+    regex = "(a|bb)*ab(a|b)*baa"
+    # regex = "aab(a|b)*ba(a|bb)*"
+    return regex
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--strategy",
+        choices=("post_check", "promote_to_p_monoid_check", "both"),
+        default="both",
+        help="Integrated learner variant to benchmark.",
+    )
+    parser.add_argument(
+        "--regex",
+        default=None,
+        help="Regex target. Defaults to DEFAULT_REGEX or generate_cyclic_group_regex(50).",
+    )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable learner debug snapshots and verbose logging.",
+    )
+    args = parser.parse_args()
+
+    regex = default_regex()
+
+    if args.regex is not None:
+        regex = args.regex
+    # --strategy   post_check | promote_to_p_monoid_check | both
+    # --regex      指定测试用正则
+    # --debug      打开 verbose 日志和 debug_snapshots
+    benchmark(regex, debug_mode=args.debug, integrated_strategy=args.strategy)
