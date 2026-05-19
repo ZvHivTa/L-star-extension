@@ -11,6 +11,7 @@ from classic_lstar_oracle import ClassicOracle
 from learner import Learner
 from oracle import Oracle
 from regex_converter import regex_to_minimal_dfa
+from two_sided_learner import TwoSidedLearner
 
 
 DEFAULT_ALPHABET = {"a", "b"}
@@ -51,24 +52,63 @@ class IntegratedResult:
     table_file: str
 
 
-def benchmark(regex_str, debug_mode=False, alphabet=None, integrated_strategy="both"):
+@dataclass
+class TwoSidedResult:
+    learner: TwoSidedLearner
+    total_time: float
+    table_file: str
+    dot_file: str
+
+
+def benchmark(regex_str, debug_mode=False, alphabet=None, method="all", integrated_strategy=None):
     """运行一次完整实验：构造目标 DFA、跑两种算法、输出对比报告。"""
     alphabet = DEFAULT_ALPHABET if alphabet is None else set(alphabet)
-    strategies = normalize_integrated_strategies(integrated_strategy)
+    methods = normalize_methods(method, integrated_strategy)
 
     print_header(regex_str)
     target_dfa = regex_to_minimal_dfa(regex_str, alphabet)
 
-    baseline = run_classic_baseline(target_dfa, alphabet)
+    baseline = run_classic_baseline(target_dfa, alphabet) if "baseline" in methods else None
     integrated_results = [
         run_integrated_learner(target_dfa, alphabet, debug_mode, strategy)
-        for strategy in strategies
+        for strategy in methods
+        if strategy in INTEGRATED_METHODS
     ]
+    two_sided = run_two_sided_learner(target_dfa, alphabet, debug_mode) if "two_sided" in methods else None
 
     for result in integrated_results:
         result.learner.display_observation_table(result.table_file)
+    if two_sided is not None:
+        two_sided.learner.display_observation_table(two_sided.table_file)
+        two_sided.learner.print_two_sided_model(two_sided.dot_file.removesuffix(".dot"))
 
-    print_report(regex_str, target_dfa, baseline, integrated_results)
+    print_report(regex_str, target_dfa, baseline, integrated_results, two_sided)
+
+
+INTEGRATED_METHODS = {"post_check", "promote_to_p_monoid_check"}
+ALL_METHODS = ("baseline", "post_check", "promote_to_p_monoid_check", "two_sided")
+
+
+def normalize_methods(method, integrated_strategy=None):
+    """Return the benchmark methods requested by the caller."""
+    if integrated_strategy is not None:
+        if method != "all":
+            raise ValueError("Use either --method or legacy --strategy, not both.")
+        strategies = normalize_integrated_strategies(integrated_strategy)
+        return ("baseline",) + tuple(strategies) + ("two_sided",)
+
+    if method == "all":
+        return ALL_METHODS
+    if isinstance(method, str):
+        methods = (method,)
+    else:
+        methods = tuple(method)
+
+    valid = set(ALL_METHODS)
+    unknown = set(methods) - valid
+    if unknown:
+        raise ValueError(f"Unknown benchmark method: {sorted(unknown)}")
+    return methods
 
 
 def normalize_integrated_strategies(integrated_strategy):
@@ -238,6 +278,30 @@ def build_integrated_learner(oracle, alphabet, debug_mode, strategy):
     )
 
 
+def run_two_sided_learner(target_dfa, alphabet, debug_mode):
+    """Run the experimental two-sided learner."""
+    print("\n>> Start Process C [Two-Sided L*]")
+
+    oracle = Oracle(target_dfa)
+    learner = TwoSidedLearner(
+        oracle,
+        alphabet,
+        debug_mode=debug_mode,
+        verbose=debug_mode,
+    )
+
+    start = time.perf_counter()
+    learner.learn()
+    total_time = time.perf_counter() - start
+
+    return TwoSidedResult(
+        learner=learner,
+        total_time=total_time,
+        table_file="observation_table_two_sided.txt",
+        dot_file="two_sided_hypothesis.dot",
+    )
+
+
 def print_header(regex_str):
     """打印单次 benchmark 的开场信息。"""
     print("\n" + "*" * 65)
@@ -245,21 +309,27 @@ def print_header(regex_str):
     print("*" * 65)
 
 
-def print_report(regex_str, target_dfa, baseline, integrated_results):
+def print_report(regex_str, target_dfa, baseline, integrated_results, two_sided=None):
     """汇总目标自动机特征和两种算法的性能指标。"""
     print("\n" + "=" * 65)
     print(f"📊 最终对比报告 - 正则: {regex_str}")
     print("=" * 65)
+    baseline_was_run = baseline is not None
 
     print("【代数特征】")
     print(f"  - Minimal DFA 状态数 : {len(target_dfa.states)}")
-    print(f"  - Monoid 规模        : {baseline.monoid_size}")
-    print(f"  - Monoid DFA 状态数  : {len(baseline.monoid_dfa.states)}")
+    if baseline_was_run:
+        print(f"  - Monoid 规模        : {baseline.monoid_size}")
+        print(f"  - Monoid DFA 状态数  : {len(baseline.monoid_dfa.states)}")
 
-    print_baseline_report(baseline)
+    if baseline_was_run:
+        print_baseline_report(baseline)
     for integrated in integrated_results:
         print_integrated_report(integrated)
-    print_conclusion(baseline.total_time, integrated_results)
+    if two_sided is not None:
+        print_two_sided_report(two_sided)
+    baseline_time = baseline.total_time if baseline_was_run else None
+    print_conclusion(baseline_time, integrated_results, two_sided)
 
 
 def print_baseline_report(result):
@@ -294,15 +364,40 @@ def print_integrated_report(result):
     print(f"  - Observation table     : {result.table_file}")
 
 
-def print_conclusion(baseline_time, integrated_results):
+def print_two_sided_report(result):
+    learner = result.learner
+    eq_percent = percent(learner.eq_time, result.total_time)
+
+    print("\n[Process C: Two-Sided L*]")
+    print(f"  - 总耗时             : {result.total_time:.6f} s")
+    print(f"      └─ 其中 EQ 耗时  : {learner.eq_time:.6f} s (占比 {eq_percent:.1f}%)")
+    print(f"  - MQ 查询总数        : {learner.mq_count} 次")
+    print(f"  - EQ 查询总数        : {learner.eq_count} 次")
+    print(f"  - P / I / S sizes       : {len(learner.P)} / {len(learner.I)} / {len(learner.S)}")
+    print(f"  - Right refinements     : {learner.right_refinements}")
+    print(f"  - Left refinements      : {learner.left_refinements}")
+    print(f"  - Observation table     : {result.table_file}")
+    print(f"  - Two-sided DOT         : {result.dot_file}")
+
+
+def print_conclusion(baseline_time, integrated_results, two_sided=None):
     """根据总耗时给出本次实验的简单胜负判断。"""
     print("-" * 65)
-    fastest = min(integrated_results, key=lambda result: result.total_time)
-    if fastest.total_time < baseline_time:
+    candidates = list(integrated_results)
+    if two_sided is not None:
+        candidates.append(two_sided)
+    if not candidates:
+        print("=" * 65 + "\n")
+        return
+    fastest = min(candidates, key=lambda result: result.total_time)
+    fastest_name = getattr(fastest, "strategy", "two_sided")
+    if baseline_time is None:
+        print(f"Fastest selected non-baseline strategy: {fastest_name}")
+    elif fastest.total_time < baseline_time:
         speedup = baseline_time / fastest.total_time
-        print(f"Best integrated strategy: {fastest.strategy} ({speedup:.2f}x faster than baseline)")
+        print(f"Best non-baseline strategy: {fastest_name} ({speedup:.2f}x faster than baseline)")
     else:
-        print(f"Baseline remains faster than the best integrated strategy ({fastest.strategy}).")
+        print(f"Baseline remains faster than the best non-baseline strategy ({fastest_name}).")
     print("=" * 65 + "\n")
 
 
@@ -343,10 +438,16 @@ def default_regex():
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
+        "--method",
+        choices=ALL_METHODS + ("all",),
+        default="all",
+        help="Benchmark method to run: baseline, post_check, promote_to_p_monoid_check, two_sided, or all.",
+    )
+    parser.add_argument(
         "--strategy",
         choices=("post_check", "promote_to_p_monoid_check", "both"),
-        default="both",
-        help="Integrated learner variant to benchmark.",
+        default=None,
+        help="Legacy integrated learner selector. Prefer --method for single-method runs.",
     )
     parser.add_argument(
         "--regex",
@@ -367,4 +468,9 @@ if __name__ == "__main__":
     # --strategy   post_check | promote_to_p_monoid_check | both
     # --regex      指定测试用正则
     # --debug      打开 verbose 日志和 debug_snapshots
-    benchmark(regex, debug_mode=args.debug, integrated_strategy=args.strategy)
+    benchmark(
+        regex,
+        debug_mode=args.debug,
+        method=args.method,
+        integrated_strategy=args.strategy,
+    )
