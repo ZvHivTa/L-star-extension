@@ -1,0 +1,16 @@
+digraph G {
+  rankdir=LR;
+  node [shape = doublecircle]; "q0";
+  node [shape = circle];
+  start [shape=point]; start -> "q0";
+  "ab" -> "ab" [label="a"];
+  "ab" -> "ab" [label="b"];
+  "q0" -> "a" [label="a"];
+  "q0" -> "b" [label="b"];
+  "a" -> "q0" [label="a"];
+  "a" -> "ab" [label="b"];
+  "b" -> "ab" [label="a"];
+  "b" -> "bb" [label="b"];
+  "bb" -> "ab" [label="a"];
+  "bb" -> "q0" [label="b"];
+}

@@ -60,6 +60,7 @@ class Learner:
         self.processed_P = set()
         self.processed_S = set()
         self.row_cache = {}
+        self.suffix_row_cache = {}
         self.sorted_p_cache = None
         self.sorted_s_cache = None
         self.sorted_i_cache = None
@@ -74,6 +75,7 @@ class Learner:
         self.language_confirmed = False
         self.skipped_eq_count = 0
         self.promoted_i_to_p_count = 0
+        self.right_consistency_refinements = 0
 
     def prepare_debug_dir(self):
         """清空并重新创建 debug 快照目录。"""
@@ -91,6 +93,7 @@ class Learner:
         """Clear cached orderings and row vectors after P/S/I changes."""
         if rows:
             self.row_cache.clear()
+            self.suffix_row_cache.clear()
             self.sorted_p_cache = None
             self.sorted_s_cache = None
         if i:
@@ -157,6 +160,22 @@ class Learner:
         self.row_cache[i] = row
         return row
 
+    def get_suffix_row(self, i):
+        """读取经典 L* 后缀行：只使用左语境 ε 下的 S 列。"""
+        cached = self.suffix_row_cache.get(i)
+        if cached is not None:
+            return cached
+
+        row_values = []
+        for s in self.sorted_s():
+            if (i, "", s) not in self.table:
+                self._fill_cell(i, "", s)
+            row_values.append(self.table[(i, "", s)])
+
+        row = tuple(row_values)
+        self.suffix_row_cache[i] = row
+        return row
+
     def fill_table(self):
         """增量填表：只补新行、新 P 列或新 S 列造成的缺口。"""
         all_rows = self.needed_rows()
@@ -217,6 +236,43 @@ class Learner:
                 else:
                     self.invalidate_context_cache(i=True)
                 return False
+
+        return True
+
+    def ensure_right_consistency(self):
+        """检查经典后缀行的右一致性；失败时加入区分后缀 a·s。"""
+        sorted_i = self.sorted_i()
+        sorted_s = self.sorted_s()
+
+        for left_idx, first in enumerate(sorted_i):
+            first_row = self.get_suffix_row(first)
+            for second in sorted_i[left_idx + 1:]:
+                if first_row != self.get_suffix_row(second):
+                    continue
+
+                for char in self.alphabet:
+                    first_ext = first + char
+                    second_ext = second + char
+                    first_ext_row = self.get_suffix_row(first_ext)
+                    second_ext_row = self.get_suffix_row(second_ext)
+
+                    if first_ext_row == second_ext_row:
+                        continue
+
+                    for idx, suffix in enumerate(sorted_s):
+                        if first_ext_row[idx] != second_ext_row[idx]:
+                            new_suffix = char + suffix
+                            self.log(
+                                "  [右一致性拦截] "
+                                f"'{first}' ≡_S '{second}', but "
+                                f"'{first_ext}' and '{second_ext}' differ on suffix '{suffix}'."
+                            )
+                            self.log(f"               >> 行动: 将后缀 '{new_suffix}' 加入 S 集合！")
+                            self.S.add(new_suffix)
+                            self.right_consistency_refinements += 1
+                            self.language_confirmed = False
+                            self.invalidate_context_cache(rows=True)
+                            return False
 
         return True
 
@@ -575,6 +631,10 @@ class Learner:
             self.save_table_snapshot(step)
 
         if not self.is_closed_and_separable():
+            self.lstar_pure_time += time.perf_counter() - start
+            return None
+
+        if not self.ensure_right_consistency():
             self.lstar_pure_time += time.perf_counter() - start
             return None
 

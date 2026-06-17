@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+debug_snapshots/
+debug_snapshots_*/
+observation_table*.txt
+*_hypothesis.dot
+.idea/
+.venv/
