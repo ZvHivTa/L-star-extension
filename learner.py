@@ -20,7 +20,7 @@ class Learner:
         debug_dir="debug_snapshots",
         verbose=True,
     ):
-        valid_monoid_strategies = {"post_check", "promote_to_p_monoid_check"}
+        valid_monoid_strategies = {"post_check", "promote_to_p"}
         if monoid_strategy not in valid_monoid_strategies:
             raise ValueError(
                 f"Unknown monoid_strategy '{monoid_strategy}'. "
@@ -70,6 +70,7 @@ class Learner:
         self.total_end_time = 0.0
         self.lstar_pure_time = 0.0
         self.monoid_probe_time = 0.0
+        self.monoid_check_count = 0
         self.eq_time = 0.0
         self.eq_count = 0
         self.language_confirmed = False
@@ -89,14 +90,19 @@ class Learner:
         """字符串集合的统一排序规则：先长度，再字典序。"""
         return len(value), value
 
-    def invalidate_context_cache(self, rows=False, i=False):
-        """Clear cached orderings and row vectors after P/S/I changes."""
-        if rows:
+    def invalidate_context_cache(self, p_changed=False, s_changed=False, i_changed=False):
+        """Invalidate only the cached views affected by P, S, or I changes."""
+        if p_changed or s_changed:
             self.row_cache.clear()
-            self.suffix_row_cache.clear()
+
+        if p_changed:
             self.sorted_p_cache = None
+
+        if s_changed:
+            self.suffix_row_cache.clear()
             self.sorted_s_cache = None
-        if i:
+
+        if i_changed:
             self.sorted_i_cache = None
             self.right_extensions_cache = None
 
@@ -229,12 +235,12 @@ class Learner:
             if self.get_row(ext) not in rows_in_I:
                 self.log(f"  [闭合拦截] 发现新状态: '{ext}'，将其提拔进主区 I")
                 self.I.add(ext)
-                if self.monoid_strategy == "promote_to_p_monoid_check":
+                if self.monoid_strategy == "promote_to_p":
                     self.P.add(ext)
                     self.promoted_i_to_p_count += 1
-                    self.invalidate_context_cache(rows=True, i=True)
+                    self.invalidate_context_cache(p_changed=True, i_changed=True)
                 else:
-                    self.invalidate_context_cache(i=True)
+                    self.invalidate_context_cache(i_changed=True)
                 return False
 
         return True
@@ -271,7 +277,7 @@ class Learner:
                             self.S.add(new_suffix)
                             self.right_consistency_refinements += 1
                             self.language_confirmed = False
-                            self.invalidate_context_cache(rows=True)
+                            self.invalidate_context_cache(s_changed=True)
                             return False
 
         return True
@@ -394,7 +400,7 @@ class Learner:
                     )
                     self.log(f"               >> 行动: 将 '{left}' 加入 P 集合！")
                     self.P.add(left)
-                    self.invalidate_context_cache(rows=True)
+                    self.invalidate_context_cache(p_changed=True)
                     return False
 
         return True
@@ -419,7 +425,7 @@ class Learner:
         for char in counterexample:
             prefix += char
             self.P.add(prefix)
-        self.invalidate_context_cache(rows=True)
+        self.invalidate_context_cache(p_changed=True, s_changed=True)
 
     def handle_breakpoint_counterexample(self, counterexample, hypothesis):
         """Rivest-Schapire 二分断点策略，只加入关键区分后缀。"""
@@ -429,7 +435,7 @@ class Learner:
         if low is None:
             self.S.add(counterexample)
             self.P.add(counterexample)
-            self.invalidate_context_cache(rows=True)
+            self.invalidate_context_cache(p_changed=True, s_changed=True)
             return
 
         distinguishing_suffix = counterexample[high:]
@@ -441,7 +447,7 @@ class Learner:
         )
         self.log(f"               >> 行动: 将后缀 '{distinguishing_suffix}' 加入 S")
         self.S.add(distinguishing_suffix)
-        self.invalidate_context_cache(rows=True)
+        self.invalidate_context_cache(s_changed=True)
 
     def trace_hypothesis_representatives(self, word, hypothesis):
         """沿假设 DFA 读取反例，记录每一步状态对应的代表元。"""
@@ -617,6 +623,11 @@ class Learner:
                 self.skipped_eq_count += 1
                 self.log("  [交卷] 语言等价性已确认，跳过本轮 EQ，直接进入代数自检...")
 
+            if self.monoid_strategy == "promote_to_p":
+                self.total_end_time = time.perf_counter()
+                self.log("\n[完结] Promote-to-P 策略通过语言 EQ，无需执行 Monoid Consistency Check。")
+                return hypothesis
+
             if self.run_monoid_phase():
                 self.total_end_time = time.perf_counter()
                 self.log("\n🎉 [完结] 句法幺半群代数结构完美收敛！")
@@ -663,6 +674,7 @@ class Learner:
     def run_monoid_phase(self):
         """EQ 通过后执行内部 monoid 左一致性自检。"""
         self.log("  [自检] EQ 及格！启动内部左一致性自检...")
+        self.monoid_check_count += 1
         start = time.perf_counter()
         consistent = self.ensure_monoid_consistency()
         self.monoid_probe_time += time.perf_counter() - start

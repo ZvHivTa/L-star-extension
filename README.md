@@ -41,7 +41,7 @@ Instead of only checking whether two prefixes have the same right language, the 
 
 ## Algorithm Flow
 
-The integrated learner has three main refinement mechanisms.
+The integrated learner has four main refinement mechanisms.
 
 ### Closure Refinement
 
@@ -55,6 +55,13 @@ is represented by an existing row pattern in `I`.
 
 If a new pattern is found, it is promoted into `I`.
 
+### Right Consistency Refinement
+
+Before building a hypothesis, the learner checks that equal suffix rows remain
+equal after right multiplication by each alphabet symbol. If `i` and `j` have
+the same suffix row but `ia` and `ja` differ on suffix `s`, the learner adds
+`a + s` to `S`.
+
 ### Counterexample Refinement
 
 When the current hypothesis DFA is not language-equivalent to the target, the oracle returns a counterexample. The learner uses a Rivest-Schapire style breakpoint strategy to extract a distinguishing suffix and adds it to `S`.
@@ -67,7 +74,7 @@ In short:
 
 ```text
 I grows when new representatives are needed.
-S grows when the language acceptor is wrong.
+S grows when right consistency fails or the language acceptor is wrong.
 P grows when syntactic monoid consistency is violated.
 ```
 
@@ -130,6 +137,20 @@ benchmark(regex, debug_mode=True)
 ```
 
 Debug mode writes step-by-step files under `debug_snapshots/`.
+
+Select a benchmark method with:
+
+```bash
+python benchmark.py --method baseline
+python benchmark.py --method post_check
+python benchmark.py --method promote_to_p
+python benchmark.py --method all
+```
+
+`post_check` adds a left context to `P` only after a Monoid Consistency
+failure. `promote_to_p` adds every new `I` representative to `P` immediately;
+because `I` is already covered by `P`, it stops after a successful EQ and does
+not execute Monoid Consistency Check.
 
 ## Benchmark Output
 

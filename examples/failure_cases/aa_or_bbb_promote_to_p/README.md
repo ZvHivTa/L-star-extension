@@ -1,12 +1,12 @@
 # Failure Case: `(aa|bbb)*`
 
 This directory preserves a counterexample for the experimental
-`promote_to_p_monoid_check` strategy.
+`promote_to_p` strategy.
 
 ## Reproduction
 
 ```powershell
-python benchmark.py --method promote_to_p_monoid_check --regex "(aa|bbb)*" --debug
+python benchmark.py --method promote_to_p --regex "(aa|bbb)*" --debug
 ```
 
 ## Observed Failure

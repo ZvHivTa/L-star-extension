@@ -72,8 +72,8 @@ def benchmark(regex_str, debug_mode=False, alphabet=None, method="all"):
     print_report(regex_str, target_dfa, baseline, integrated_results)
 
 
-INTEGRATED_METHODS = {"post_check", "promote_to_p_monoid_check"}
-ALL_METHODS = ("baseline", "post_check", "promote_to_p_monoid_check")
+INTEGRATED_METHODS = {"post_check", "promote_to_p"}
+ALL_METHODS = ("baseline", "post_check", "promote_to_p")
 
 
 def normalize_methods(method):
@@ -223,7 +223,7 @@ def integrated_strategy_name(strategy):
     """Human-readable label for an integrated learner strategy."""
     names = {
         "post_check": "Integrated L* + Monoid Consistency Check",
-        "promote_to_p_monoid_check": "Integrated L* + Promote I to P + Monoid Check",
+        "promote_to_p": "Integrated L* + Promote I to P",
     }
     return names[strategy]
 
@@ -299,6 +299,7 @@ def print_integrated_report(result):
     print(f"  - EQ 查询总数        : {eq_count} 次")
     print(f"  - 跳过 EQ 次数        : {learner.skipped_eq_count} 次")
     print(f"  - Monoid check time     : {learner.monoid_probe_time:.6f} s")
+    print(f"  - Monoid check count    : {learner.monoid_check_count}")
     print(f"  - Right consistency refs: {learner.right_consistency_refinements}")
     print(f"  - I-promoted-to-P count : {learner.promoted_i_to_p_count}")
     print(f"  - Observation table     : {result.table_file}")
@@ -364,7 +365,7 @@ if __name__ == "__main__":
         default="all",
         help=(
             "Benchmark method to run: baseline, post_check, "
-            "promote_to_p_monoid_check, or all."
+            "promote_to_p, or all."
         ),
     )
     parser.add_argument(
@@ -383,7 +384,7 @@ if __name__ == "__main__":
 
     if args.regex is not None:
         regex = args.regex
-    # --method     baseline | post_check | promote_to_p_monoid_check | all
+    # --method     baseline | post_check | promote_to_p | all
     # --regex      指定测试用正则
     # --debug      打开 verbose 日志和 debug_snapshots
     benchmark(
