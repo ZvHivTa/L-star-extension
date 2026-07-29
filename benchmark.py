@@ -357,6 +357,22 @@ def default_regex():
     return regex
 
 
+def parse_alphabet(value):
+    """Parse CLI alphabets written as either ``abc`` or ``a,b,c``."""
+    if "," in value:
+        symbols = [symbol.strip() for symbol in value.split(",") if symbol.strip()]
+    else:
+        symbols = list(value.strip())
+
+    if not symbols:
+        raise argparse.ArgumentTypeError("alphabet must contain at least one symbol")
+    if any(len(symbol) != 1 for symbol in symbols):
+        raise argparse.ArgumentTypeError(
+            "each alphabet symbol must be one character; use forms like abc or a,b,c"
+        )
+    return set(symbols)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -374,6 +390,12 @@ if __name__ == "__main__":
         help="Regex target. Defaults to DEFAULT_REGEX or generate_cyclic_group_regex(50).",
     )
     parser.add_argument(
+        "--alphabet",
+        type=parse_alphabet,
+        default=None,
+        help="Input alphabet, for example abc or a,b,c. Defaults to ab.",
+    )
+    parser.add_argument(
         "--debug",
         action="store_true",
         help="Enable learner debug snapshots and verbose logging.",
@@ -386,9 +408,11 @@ if __name__ == "__main__":
         regex = args.regex
     # --method     baseline | post_check | promote_to_p | all
     # --regex      指定测试用正则
+    # --alphabet   指定字母表，例如 abc 或 a,b,c
     # --debug      打开 verbose 日志和 debug_snapshots
     benchmark(
         regex,
         debug_mode=args.debug,
+        alphabet=args.alphabet,
         method=args.method,
     )
