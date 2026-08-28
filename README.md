@@ -88,8 +88,10 @@ P grows when syntactic monoid consistency is violated.
 ├── classic_lstar_learner.py
 ├── classic_lstar_oracle.py
 ├── regex_converter.py
-├── observation_table.txt
-├── debug_snapshots/
+├── experiments/
+│   └── reports/
+├── experiment_results/
+├── tests/
 └── docs/
 ```
 
@@ -101,7 +103,9 @@ Important files:
 - `classic_lstar_oracle.py`: oracle used by the classic baseline.
 - `benchmark.py`: compares the classic route and the integrated route.
 - `regex_converter.py`: converts a regular expression into a minimal DFA using `automata-lib`.
-- `debug_snapshots/`: generated debug output for observation tables and hypothesis automata.
+- `experiments/`: reproducible benchmark runners; report and figure generators live in `experiments/reports/`.
+- `experiment_results/`: dated reports, raw benchmark JSON, and generated figures.
+- `tests/`: focused regression tests for learner behavior and experiment statistics.
 - `docs/`: project notes and work logs.
 
 ## Requirements

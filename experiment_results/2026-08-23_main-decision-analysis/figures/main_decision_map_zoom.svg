@@ -1,0 +1,165 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="940" viewBox="0 0 1500 940">
+<rect width="100%" height="100%" fill="#FFFFFF"/>
+<text x="750.0" y="42.0" text-anchor="middle" font-family="sans-serif" font-size="25" font-weight="700" fill="#17202A">Main decision map: local-cost region up to 500 ms</text>
+<text x="750.0" y="70.0" text-anchor="middle" font-family="sans-serif" font-size="15" fill="#586069">Each point is one target language; error bars are bootstrap 95% CIs</text>
+<line x1="125" y1="739.4" x2="1130" y2="739.4" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="744.4" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">-1</text>
+<line x1="125" y1="597.9" x2="1130" y2="597.9" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="602.9" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">0</text>
+<line x1="125" y1="456.3" x2="1130" y2="456.3" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="461.3" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">1</text>
+<line x1="125" y1="325.4" x2="1130" y2="325.4" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="330.4" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">10</text>
+<line x1="125" y1="190.0" x2="1130" y2="190.0" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="195.0" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">100</text>
+<line x1="125" y1="125.2" x2="1130" y2="125.2" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="130.2" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">300</text>
+<line x1="125" y1="95.0" x2="1130" y2="95.0" stroke="#E3E7EA" stroke-width="1"/>
+<text x="111.0" y="100.0" text-anchor="end" font-family="sans-serif" font-size="13" fill="#4B5563">500</text>
+<line x1="156.4" y1="95" x2="156.4" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="156.4" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">0</text>
+<line x1="313.4" y1="95" x2="313.4" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="313.4" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">5</text>
+<line x1="470.5" y1="95" x2="470.5" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="470.5" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">10</text>
+<line x1="627.5" y1="95" x2="627.5" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="627.5" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">15</text>
+<line x1="784.5" y1="95" x2="784.5" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="784.5" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">20</text>
+<line x1="941.6" y1="95" x2="941.6" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="941.6" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">25</text>
+<line x1="1098.6" y1="95" x2="1098.6" y2="830" stroke="#EEF1F3" stroke-width="1"/>
+<text x="1098.6" y="858.0" text-anchor="middle" font-family="sans-serif" font-size="13" fill="#4B5563">30</text>
+<line x1="156.4" y1="95" x2="156.4" y2="830" stroke="#7A8288" stroke-width="1.5"/>
+<line x1="125" y1="597.9" x2="1130" y2="597.9" stroke="#7A8288" stroke-width="1.5"/>
+<polyline points="156.4,597.9 162.5,534.2 168.6,504.3 174.7,484.6 180.7,469.8 186.8,458.0 192.9,448.2 199.0,439.7 205.1,432.4 211.2,425.8 217.3,419.9 223.3,414.5 229.4,409.6 235.5,405.1 241.6,400.9 247.7,396.9 253.8,393.2 259.9,389.8 265.9,386.5 272.0,383.4 278.1,380.4 284.2,377.6 290.3,375.0 296.4,372.4 302.4,369.9 308.5,367.6 314.6,365.3 320.7,363.1 326.8,361.0 332.9,359.0 339.0,357.0 345.0,355.1 351.1,353.3 357.2,351.5 363.3,349.7 369.4,348.0 375.5,346.4 381.5,344.8 387.6,343.3 393.7,341.7 399.8,340.3 405.9,338.8 412.0,337.4 418.1,336.1 424.1,334.7 430.2,333.4 436.3,332.1 442.4,330.9 448.5,329.6 454.6,328.4 460.7,327.2 466.7,326.1 472.8,325.0 478.9,323.8 485.0,322.7 491.1,321.7 497.2,320.6 503.2,319.6 509.3,318.6 515.4,317.6 521.5,316.6 527.6,315.6 533.7,314.7 539.8,313.7 545.8,312.8 551.9,311.9 558.0,311.0 564.1,310.1 570.2,309.3 576.3,308.4 582.4,307.6 588.4,306.7 594.5,305.9 600.6,305.1 606.7,304.3 612.8,303.5 618.9,302.7 624.9,302.0 631.0,301.2 637.1,300.5 643.2,299.7 649.3,299.0 655.4,298.3 661.5,297.6 667.5,296.9 673.6,296.2 679.7,295.5 685.8,294.8 691.9,294.1 698.0,293.5 704.1,292.8 710.1,292.2 716.2,291.5 722.3,290.9 728.4,290.3 734.5,289.6 740.6,289.0 746.6,288.4 752.7,287.8 758.8,287.2 764.9,286.6 771.0,286.0 777.1,285.5 783.2,284.9 789.2,284.3 795.3,283.8 801.4,283.2 807.5,282.6 813.6,282.1 819.7,281.6 825.8,281.0 831.8,280.5 837.9,280.0 844.0,279.4 850.1,278.9 856.2,278.4 862.3,277.9 868.3,277.4 874.4,276.9 880.5,276.4 886.6,275.9 892.7,275.4 898.8,274.9 904.9,274.5 910.9,274.0 917.0,273.5 923.1,273.0 929.2,272.6 935.3,272.1 941.4,271.7 947.5,271.2 953.5,270.8 959.6,270.3 965.7,269.9 971.8,269.4 977.9,269.0 984.0,268.6 990.0,268.1 996.1,267.7 1002.2,267.3 1008.3,266.8 1014.4,266.4 1020.5,266.0 1026.6,265.6 1032.6,265.2 1038.7,264.8 1044.8,264.4 1050.9,264.0 1057.0,263.6 1063.1,263.2 1069.2,262.8 1075.2,262.4 1081.3,262.0 1087.4,261.6 1093.5,261.2 1099.6,260.9 1105.7,260.5 1111.7,260.1 1117.8,259.7 1123.9,259.4 1130.0,259.0" fill="none" stroke="#6B7280" stroke-width="2" stroke-dasharray="8 5" opacity="0.85"/>
+<polyline points="156.4,597.9 162.5,419.9 168.6,380.4 174.7,357.0 180.7,340.3 186.8,327.2 192.9,316.6 199.0,307.6 205.1,299.7 211.2,292.8 217.3,286.6 223.3,281.0 229.4,275.9 235.5,271.2 241.6,266.8 247.7,262.8 253.8,259.0 259.9,255.4 265.9,252.1 272.0,248.9 278.1,245.9 284.2,243.0 290.3,240.2 296.4,237.6 302.4,235.1 308.5,232.7 314.6,230.4 320.7,228.2 326.8,226.0 332.9,224.0 339.0,222.0 345.0,220.0 351.1,218.2 357.2,216.3 363.3,214.6 369.4,212.9 375.5,211.2 381.5,209.6 387.6,208.0 393.7,206.5 399.8,205.0 405.9,203.5 412.0,202.1 418.1,200.7 424.1,199.4 430.2,198.1 436.3,196.8 442.4,195.5 448.5,194.3 454.6,193.0 460.7,191.8 466.7,190.7 472.8,189.5 478.9,188.4 485.0,187.3 491.1,186.2 497.2,185.2 503.2,184.1 509.3,183.1 515.4,182.1 521.5,181.1 527.6,180.1 533.7,179.2 539.8,178.2 545.8,177.3 551.9,176.4 558.0,175.5 564.1,174.6 570.2,173.7 576.3,172.8 582.4,172.0 588.4,171.2 594.5,170.3 600.6,169.5 606.7,168.7 612.8,167.9 618.9,167.1 624.9,166.4 631.0,165.6 637.1,164.9 643.2,164.1 649.3,163.4 655.4,162.7 661.5,161.9 667.5,161.2 673.6,160.5 679.7,159.9 685.8,159.2 691.9,158.5 698.0,157.8 704.1,157.2 710.1,156.5 716.2,155.9 722.3,155.2 728.4,154.6 734.5,154.0 740.6,153.4 746.6,152.8 752.7,152.1 758.8,151.5 764.9,151.0 771.0,150.4 777.1,149.8 783.2,149.2 789.2,148.6 795.3,148.1 801.4,147.5 807.5,147.0 813.6,146.4 819.7,145.9 825.8,145.3 831.8,144.8 837.9,144.3 844.0,143.7 850.1,143.2 856.2,142.7 862.3,142.2 868.3,141.7 874.4,141.2 880.5,140.7 886.6,140.2 892.7,139.7 898.8,139.2 904.9,138.7 910.9,138.3 917.0,137.8 923.1,137.3 929.2,136.8 935.3,136.4 941.4,135.9 947.5,135.5 953.5,135.0 959.6,134.6 965.7,134.1 971.8,133.7 977.9,133.2 984.0,132.8 990.0,132.4 996.1,131.9 1002.2,131.5 1008.3,131.1 1014.4,130.7 1020.5,130.3 1026.6,129.8 1032.6,129.4 1038.7,129.0 1044.8,128.6 1050.9,128.2 1057.0,127.8 1063.1,127.4 1069.2,127.0 1075.2,126.6 1081.3,126.2 1087.4,125.9 1093.5,125.5 1099.6,125.1 1105.7,124.7 1111.7,124.3 1117.8,124.0 1123.9,123.6 1130.0,123.2" fill="none" stroke="#7C5DB3" stroke-width="2" stroke-dasharray="8 5" opacity="0.85"/>
+<polyline points="156.4,597.9 162.5,286.6 168.6,245.9 174.7,222.0 180.7,205.0 186.8,191.8 192.9,181.1 199.0,172.0 205.1,164.1 211.2,157.2 217.3,151.0 223.3,145.3 229.4,140.2 235.5,135.5 241.6,131.1 247.7,127.0 253.8,123.2 259.9,119.6 265.9,116.3 272.0,113.1 278.1,110.0 284.2,107.2 290.3,104.4 296.4,101.8 302.4,99.3 308.5,96.9" fill="none" stroke="#C17D11" stroke-width="2" stroke-dasharray="8 5" opacity="0.85"/>
+<polyline points="156.4,597.9 162.5,222.0 168.6,181.1 174.7,157.2 180.7,140.2 186.8,127.0 192.9,116.3 199.0,107.2 205.1,99.3" fill="none" stroke="#B53A3A" stroke-width="2" stroke-dasharray="8 5" opacity="0.85"/>
+<line x1="156.4" y1="603.1" x2="156.4" y2="587.9" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="599.0" r="5.0" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_a | saved EQ=0 | extra local=-0.002 ms | monoid=2</title></circle>
+<line x1="187.8" y1="619.6" x2="187.8" y2="591.6" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="597.9" r="5.5" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_a_and_b | saved EQ=1 | extra local=-0.000 ms | monoid=4</title></circle>
+<line x1="156.4" y1="603.7" x2="156.4" y2="594.6" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="598.7" r="5.0" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>even_a | saved EQ=0 | extra local=-0.001 ms | monoid=2</title></circle>
+<line x1="156.4" y1="612.6" x2="156.4" y2="597.6" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="602.3" r="5.0" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>odd_a | saved EQ=0 | extra local=-0.008 ms | monoid=2</title></circle>
+<line x1="156.4" y1="605.7" x2="156.4" y2="600.9" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="601.8" r="5.0" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>even_b | saved EQ=0 | extra local=-0.007 ms | monoid=2</title></circle>
+<line x1="187.8" y1="631.9" x2="187.8" y2="601.1" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="617.6" r="5.3" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_3_zero | saved EQ=1 | extra local=-0.040 ms | monoid=3</title></circle>
+<line x1="187.8" y1="606.5" x2="187.8" y2="581.7" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="591.4" r="5.5" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>b_mod_4_zero | saved EQ=1 | extra local=0.012 ms | monoid=4</title></circle>
+<line x1="156.4" y1="605.2" x2="156.4" y2="584.8" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="599.7" r="5.0" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>same_parity_a_b | saved EQ=0 | extra local=-0.003 ms | monoid=2</title></circle>
+<line x1="219.2" y1="622.5" x2="219.2" y2="589.4" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="219.2" cy="602.0" r="5.5" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>both_counts_even | saved EQ=2 | extra local=-0.007 ms | monoid=4</title></circle>
+<line x1="156.4" y1="603.5" x2="156.4" y2="578.1" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="597.0" r="5.3" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_least_two_a | saved EQ=0 | extra local=0.002 ms | monoid=3</title></circle>
+<line x1="187.8" y1="600.3" x2="187.8" y2="577.1" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="587.8" r="5.5" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_most_two_b | saved EQ=1 | extra local=0.019 ms | monoid=4</title></circle>
+<line x1="282.0" y1="580.7" x2="282.0" y2="555.4" stroke="#16877A" stroke-width="1.4" opacity="0.5"/>
+<circle cx="282.0" cy="570.9" r="5.8" fill="#16877A" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_3_b_mod_2_zero | saved EQ=4 | extra local=0.058 ms | monoid=6</title></circle>
+<text x="292.0" y="561.9" font-family="sans-serif" font-size="12" fill="#20262C">a_mod_3_b_mod_2_zero</text>
+<line x1="156.4" y1="615.9" x2="156.4" y2="592.8" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="607.4" r="5.0" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_a | saved EQ=0 | extra local=-0.018 ms | monoid=2</title></circle>
+<line x1="187.8" y1="642.8" x2="187.8" y2="576.7" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="602.7" r="5.5" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_a_and_b | saved EQ=1 | extra local=-0.009 ms | monoid=4</title></circle>
+<line x1="156.4" y1="603.6" x2="156.4" y2="591.2" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="598.2" r="5.3" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>starts_with_a | saved EQ=0 | extra local=-0.001 ms | monoid=3</title></circle>
+<line x1="156.4" y1="630.5" x2="156.4" y2="616.5" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="622.3" r="5.3" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>ends_with_b | saved EQ=0 | extra local=-0.051 ms | monoid=3</title></circle>
+<line x1="156.4" y1="620.0" x2="156.4" y2="599.4" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="607.0" r="5.7" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_ab | saved EQ=0 | extra local=-0.017 ms | monoid=5</title></circle>
+<line x1="156.4" y1="606.8" x2="156.4" y2="580.1" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="590.3" r="5.8" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>avoids_aa | saved EQ=0 | extra local=0.014 ms | monoid=6</title></circle>
+<line x1="187.8" y1="620.1" x2="187.8" y2="606.3" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="613.5" r="5.3" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>exactly_one_a | saved EQ=1 | extra local=-0.030 ms | monoid=3</title></circle>
+<line x1="156.4" y1="595.6" x2="156.4" y2="582.5" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="591.8" r="5.3" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_least_two_a | saved EQ=0 | extra local=0.011 ms | monoid=3</title></circle>
+<line x1="187.8" y1="601.7" x2="187.8" y2="542.0" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="585.0" r="5.5" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_most_two_b | saved EQ=1 | extra local=0.024 ms | monoid=4</title></circle>
+<line x1="156.4" y1="627.2" x2="156.4" y2="588.0" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="606.0" r="5.7" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_before_b | saved EQ=0 | extra local=-0.015 ms | monoid=5</title></circle>
+<line x1="156.4" y1="618.5" x2="156.4" y2="573.0" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="581.0" r="6.0" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>ends_with_aba | saved EQ=0 | extra local=0.033 ms | monoid=8</title></circle>
+<line x1="219.2" y1="544.8" x2="219.2" y2="528.2" stroke="#D18B19" stroke-width="1.4" opacity="0.5"/>
+<circle cx="219.2" cy="536.8" r="5.8" fill="#D18B19" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>length_at_most_4 | saved EQ=2 | extra local=0.181 ms | monoid=6</title></circle>
+<line x1="156.4" y1="611.8" x2="156.4" y2="596.1" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="603.6" r="4.5" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>all_words | saved EQ=0 | extra local=-0.010 ms | monoid=1</title></circle>
+<line x1="282.0" y1="647.9" x2="282.0" y2="514.0" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="282.0" cy="536.5" r="6.0" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_all_symbols | saved EQ=4 | extra local=0.183 ms | monoid=8</title></circle>
+<line x1="344.8" y1="576.0" x2="344.8" y2="389.1" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="344.8" cy="422.7" r="6.1" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>exactly_one_each | saved EQ=6 | extra local=1.843 ms | monoid=9</title></circle>
+<line x1="156.4" y1="610.2" x2="156.4" y2="585.5" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="597.3" r="5.0" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>even_a | saved EQ=0 | extra local=0.001 ms | monoid=2</title></circle>
+<line x1="187.8" y1="650.6" x2="187.8" y2="565.2" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="606.6" r="5.3" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_3_zero | saved EQ=1 | extra local=-0.016 ms | monoid=3</title></circle>
+<line x1="344.8" y1="522.8" x2="344.8" y2="414.3" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="344.8" cy="468.9" r="6.0" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>all_counts_even | saved EQ=6 | extra local=0.788 ms | monoid=8</title></circle>
+<text x="354.8" y="459.9" font-family="sans-serif" font-size="12" fill="#20262C">all_counts_even</text>
+<line x1="470.5" y1="387.1" x2="470.5" y2="360.2" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="470.5" cy="364.9" r="6.3" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>mixed_mod_3_2_2 | saved EQ=10 | extra local=5.074 ms | monoid=12</title></circle>
+<line x1="282.0" y1="505.8" x2="282.0" y2="456.0" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="282.0" cy="481.8" r="6.0" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>length_mod_8 | saved EQ=4 | extra local=0.614 ms | monoid=8</title></circle>
+<line x1="407.7" y1="373.8" x2="407.7" y2="353.2" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="407.7" cy="362.1" r="6.3" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_4_b_mod_3 | saved EQ=8 | extra local=5.327 ms | monoid=12</title></circle>
+<line x1="156.4" y1="592.2" x2="156.4" y2="449.2" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="549.5" r="6.0" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>ends_with_abc | saved EQ=0 | extra local=0.127 ms | monoid=8</title></circle>
+<line x1="156.4" y1="504.6" x2="156.4" y2="458.2" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="471.6" r="6.3" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>ends_with_abca | saved EQ=0 | extra local=0.749 ms | monoid=12</title></circle>
+<line x1="156.4" y1="494.1" x2="156.4" y2="463.3" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="479.5" r="6.3" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_abc | saved EQ=0 | extra local=0.642 ms | monoid=12</title></circle>
+<line x1="156.4" y1="371.1" x2="156.4" y2="340.1" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="358.9" r="6.7" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>contains_abca | saved EQ=0 | extra local=5.625 ms | monoid=21</title></circle>
+<line x1="219.2" y1="555.0" x2="219.2" y2="489.2" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="219.2" cy="508.1" r="6.3" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>avoids_equal_neighbors | saved EQ=2 | extra local=0.357 ms | monoid=11</title></circle>
+<line x1="156.4" y1="628.8" x2="156.4" y2="573.3" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="607.9" r="6.0" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>ordered_blocks | saved EQ=0 | extra local=-0.019 ms | monoid=8</title></circle>
+<line x1="187.8" y1="369.8" x2="187.8" y2="324.9" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="187.8" cy="350.2" r="6.6" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>exact_abcabc | saved EQ=1 | extra local=6.537 ms | monoid=17</title></circle>
+<line x1="784.5" y1="243.8" x2="784.5" y2="196.5" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="784.5" cy="217.6" r="6.9" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_least_two_each | saved EQ=20 | extra local=62.583 ms | monoid=27</title></circle>
+<text x="794.5" y="208.6" font-family="sans-serif" font-size="12" fill="#20262C">at_least_two_each</text>
+<line x1="156.4" y1="378.9" x2="156.4" y2="360.6" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="156.4" cy="370.5" r="6.8" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>s4_permutation_action | saved EQ=0 | extra local=4.600 ms | monoid=24</title></circle>
+<line x1="439.1" y1="272.2" x2="439.1" y2="251.3" stroke="#3478C9" stroke-width="1.4" opacity="0.5"/>
+<circle cx="439.1" cy="257.2" r="6.8" fill="#3478C9" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>dihedral_action_12 | saved EQ=9 | extra local=31.963 ms | monoid=24</title></circle>
+<line x1="533.3" y1="213.3" x2="533.3" y2="186.4" stroke="#C84B4B" stroke-width="1.4" opacity="0.5"/>
+<circle cx="533.3" cy="200.8" r="7.1" fill="#C84B4B" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_5_or_b_mod_7 | saved EQ=12 | extra local=83.252 ms | monoid=35</title></circle>
+<line x1="596.1" y1="160.0" x2="596.1" y2="134.8" stroke="#C84B4B" stroke-width="1.4" opacity="0.5"/>
+<circle cx="596.1" cy="145.4" r="7.3" fill="#C84B4B" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_6_or_b_mod_7 | saved EQ=14 | extra local=212.845 ms | monoid=42</title></circle>
+<line x1="501.9" y1="123.9" x2="501.9" y2="120.9" stroke="#C84B4B" stroke-width="1.4" opacity="0.5"/>
+<circle cx="501.9" cy="122.1" r="7.3" fill="#C84B4B" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_least_6_a_or_b_mod_7 | saved EQ=11 | extra local=315.718 ms | monoid=43</title></circle>
+<line x1="313.4" y1="184.1" x2="313.4" y2="174.2" stroke="#C84B4B" stroke-width="1.4" opacity="0.5"/>
+<circle cx="313.4" cy="178.0" r="7.3" fill="#C84B4B" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>at_least_6_a_or_7_b | saved EQ=5 | extra local=122.428 ms | monoid=43</title></circle>
+<line x1="847.3" y1="141.0" x2="847.3" y2="138.7" stroke="#C84B4B" stroke-width="1.4" opacity="0.5"/>
+<circle cx="847.3" cy="139.3" r="7.0" fill="#C84B4B" stroke="#FFFFFF" stroke-width="1.6" opacity="0.88"><title>a_mod_31_zero | saved EQ=22 | extra local=236.023 ms | monoid=31</title></circle>
+<text x="857.3" y="130.3" font-family="sans-serif" font-size="12" fill="#20262C">a_mod_31_zero</text>
+<rect x="125" y="95" width="1005" height="735" fill="none" stroke="#5C6570" stroke-width="1.2"/>
+<text x="627.5" y="900.0" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="600" fill="#222B33">EQs saved by Promote  (EQ Post - EQ Promote)</text>
+<text x="31" y="462.5" transform="rotate(-90 31 462.5)" text-anchor="middle" font-family="sans-serif" font-size="18" font-weight="600" fill="#222B33">Additional local time of Promote (ms, symlog)</text>
+<text x="1175.0" y="110.0" font-family="sans-serif" font-size="16" font-weight="700" fill="#222B33">Language category</text>
+<circle cx="1182" cy="135" r="7" fill="#16877A"/>
+<text x="1198.0" y="140.0" font-family="sans-serif" font-size="14" fill="#303840">Commutative</text>
+<circle cx="1182" cy="163" r="7" fill="#D18B19"/>
+<text x="1198.0" y="168.0" font-family="sans-serif" font-size="14" fill="#303840">Star-free</text>
+<circle cx="1182" cy="191" r="7" fill="#3478C9"/>
+<text x="1198.0" y="196.0" font-family="sans-serif" font-size="14" fill="#303840">Three-letter</text>
+<circle cx="1182" cy="219" r="7" fill="#C84B4B"/>
+<text x="1198.0" y="224.0" font-family="sans-serif" font-size="14" fill="#303840">Complex commutative</text>
+<text x="1175.0" y="275.0" font-family="sans-serif" font-size="16" font-weight="700" fill="#222B33">Decision lines</text>
+<line x1="1175" y1="297" x2="1210" y2="297" stroke="#6B7280" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="1220.0" y="302.0" font-family="sans-serif" font-size="14" fill="#303840">C = 1 ms / EQ</text>
+<line x1="1175" y1="324" x2="1210" y2="324" stroke="#7C5DB3" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="1220.0" y="329.0" font-family="sans-serif" font-size="14" fill="#303840">C = 10 ms / EQ</text>
+<line x1="1175" y1="351" x2="1210" y2="351" stroke="#C17D11" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="1220.0" y="356.0" font-family="sans-serif" font-size="14" fill="#303840">C = 100 ms / EQ</text>
+<line x1="1175" y1="378" x2="1210" y2="378" stroke="#B53A3A" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="1220.0" y="383.0" font-family="sans-serif" font-size="14" fill="#303840">C = 300 ms / EQ</text>
+<text x="1175.0" y="430.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#16877A">Below a C-line:</text>
+<text x="1175.0" y="452.0" font-family="sans-serif" font-size="13" fill="#303840">Promote wins at that EQ cost</text>
+<text x="1175.0" y="482.0" font-family="sans-serif" font-size="14" font-weight="700" fill="#C84B4B">Above a C-line:</text>
+<text x="1175.0" y="504.0" font-family="sans-serif" font-size="13" fill="#303840">Post wins at that EQ cost</text>
+<text x="1175.0" y="548.0" font-family="sans-serif" font-size="13" fill="#586069">Visible points: 48 / 56</text>
+</svg>

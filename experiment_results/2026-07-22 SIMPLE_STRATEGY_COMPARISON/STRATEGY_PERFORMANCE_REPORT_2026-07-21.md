@@ -25,7 +25,7 @@
 复现命令：
 
 ```powershell
-python -m tests.compare_strategies
+python -m experiments.compare_strategies
 ```
 
 ## 3. 测试结果

@@ -292,7 +292,7 @@ def render_report(data: dict[str, list[dict]], repeats: dict[str, int]) -> str:
         "[alphabet_3.json](benchmark_data/alphabet_3.json)。",
         "每个用例都包含经语言等价验证的 `regex` 字段；表达式只使用连接、"
         "`|`、`*` 和括号，可选项与固定次数均已显式展开。",
-        "复现实验脚本：[compare_language_categories.py](../../tests/compare_language_categories.py)。",
+        "复现实验脚本：[compare_language_categories.py](../../experiments/compare_language_categories.py)。",
         "",
         "## 3. 总体结果",
         "",

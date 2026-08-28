@@ -5,11 +5,14 @@ from __future__ import annotations
 import argparse
 import gc
 import json
+import platform
 import statistics
+import subprocess
 import sys
 import time
 from collections import deque
 from dataclasses import dataclass
+from itertools import combinations, permutations, product
 from pathlib import Path
 from typing import Callable, Hashable
 
@@ -25,8 +28,6 @@ STRATEGIES = ("post_check", "promote_to_p")
 DEFAULT_REPEATS = {
     "commutative": 15,
     "star_free": 15,
-    "alphabet_3": 7,
-    "complex_commutative": 5,
 }
 
 
@@ -507,11 +508,266 @@ def complex_commutative_cases() -> tuple[LanguageCase, ...]:
     return tuple(cases)
 
 
+def benchmark_alphabets() -> tuple[set[str], ...]:
+    """Return the alphabet sizes covered by the large category experiment."""
+    symbols = "abcd"
+    return tuple(set(symbols[:size]) for size in range(1, len(symbols) + 1))
+
+
+def large_commutative_cases() -> tuple[LanguageCase, ...]:
+    """Build 240 distinct commutative languages over one to four letters."""
+    cases: list[LanguageCase] = []
+    alphabets = benchmark_alphabets()
+
+    for alphabet in alphabets:
+        alphabet_key = "".join(sorted(alphabet))
+        for symbol in sorted(alphabet):
+            for modulus in range(2, 10):
+                cases.append(
+                    LanguageCase(
+                        f"comm_mod_{alphabet_key}_{symbol}_{modulus}",
+                        f"#{symbol} is 0 modulo {modulus}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), s=symbol, n=modulus: counter_mod(
+                            a, {s: n}, lambda state: state[0] == 0
+                        ),
+                    )
+                )
+
+            for threshold in range(1, 7):
+                cases.append(
+                    LanguageCase(
+                        f"comm_at_least_{alphabet_key}_{symbol}_{threshold}",
+                        f"#{symbol} is at least {threshold}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), s=symbol, k=threshold: threshold_counter(
+                            a, {s: k}, lambda state: state[0] == k
+                        ),
+                    )
+                )
+
+            for exact in range(1, 5):
+                cases.append(
+                    LanguageCase(
+                        f"comm_exact_{alphabet_key}_{symbol}_{exact}",
+                        f"#{symbol} is exactly {exact}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), s=symbol, k=exact: threshold_counter(
+                            a, {s: k + 1}, lambda state: state[0] == k
+                        ),
+                    )
+                )
+
+    for alphabet in alphabets[1:]:
+        alphabet_key = "".join(sorted(alphabet))
+        for modulus in range(2, 10):
+            cases.append(
+                LanguageCase(
+                    f"comm_length_mod_{alphabet_key}_{modulus}",
+                    f"word length is 0 modulo {modulus}",
+                    frozenset(alphabet),
+                    lambda a=set(alphabet), n=modulus: state_dfa(
+                        a, 0, lambda state, _char: (state + 1) % n,
+                        lambda state: state == 0,
+                    ),
+                )
+            )
+        cases.append(
+            LanguageCase(
+                f"comm_contains_all_{alphabet_key}",
+                f"contains every symbol in {alphabet_key}",
+                frozenset(alphabet),
+                lambda a=set(alphabet): contains_all(a),
+            )
+        )
+
+    modulus_pairs = ((2, 2), (2, 3), (3, 2))
+    for alphabet in alphabets[1:]:
+        alphabet_key = "".join(sorted(alphabet))
+        for left, right in combinations(sorted(alphabet), 2):
+            for left_modulus, right_modulus in modulus_pairs:
+                cases.append(
+                    LanguageCase(
+                        f"comm_product_mod_{alphabet_key}_{left}{left_modulus}_{right}{right_modulus}",
+                        f"#{left} is 0 mod {left_modulus} and #{right} is 0 mod {right_modulus}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), x=left, m=left_modulus,
+                        y=right, n=right_modulus: counter_mod(
+                            a, {x: m, y: n}, lambda state: state == (0, 0)
+                        ),
+                    )
+                )
+
+        first, second = sorted(alphabet)[:2]
+        second_limit = 2 if len(alphabet) == 2 else 1
+        cases.append(
+            LanguageCase(
+                f"comm_product_threshold_{alphabet_key}_{first}1_{second}{second_limit}",
+                f"#{first} is at least 1 and #{second} is at least {second_limit}",
+                frozenset(alphabet),
+                lambda a=set(alphabet), x=first, y=second,
+                n=second_limit: threshold_counter(
+                    a, {x: 1, y: n}, lambda state: state == (1, n)
+                ),
+            )
+        )
+
+    if len(cases) != 240:
+        raise AssertionError(f"expected 240 commutative cases, got {len(cases)}")
+    return tuple(cases)
+
+
+def take_patterns(
+    alphabets: tuple[set[str], ...],
+    lengths: tuple[int, ...],
+    limit: int,
+) -> list[tuple[set[str], str]]:
+    """Take a deterministic prefix of words while rotating alphabet sizes."""
+    pools = []
+    for alphabet in alphabets:
+        words = []
+        symbols = sorted(alphabet)
+        for length in lengths:
+            words.extend("".join(chars) for chars in product(symbols, repeat=length))
+        pools.append((alphabet, words))
+
+    selected = []
+    index = 0
+    while len(selected) < limit:
+        made_progress = False
+        for alphabet, words in pools:
+            if index < len(words) and len(selected) < limit:
+                selected.append((alphabet, words[index]))
+                made_progress = True
+        if not made_progress:
+            raise ValueError("not enough patterns for requested suite")
+        index += 1
+    return selected
+
+
+def large_star_free_cases() -> tuple[LanguageCase, ...]:
+    """Build 240 distinct aperiodic languages over one to four letters."""
+    cases: list[LanguageCase] = []
+    alphabets = benchmark_alphabets()
+
+    for alphabet in alphabets:
+        alphabet_key = "".join(sorted(alphabet))
+        for symbol in sorted(alphabet):
+            for threshold in range(1, 7):
+                cases.append(
+                    LanguageCase(
+                        f"sf_at_least_{alphabet_key}_{symbol}_{threshold}",
+                        f"#{symbol} is at least {threshold}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), s=symbol, k=threshold: threshold_counter(
+                            a, {s: k}, lambda state: state[0] == k
+                        ),
+                    )
+                )
+            for exact in range(1, 5):
+                cases.append(
+                    LanguageCase(
+                        f"sf_exact_{alphabet_key}_{symbol}_{exact}",
+                        f"#{symbol} is exactly {exact}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), s=symbol, k=exact: threshold_counter(
+                            a, {s: k + 1}, lambda state: state[0] == k
+                        ),
+                    )
+                )
+            for maximum in range(0, 5):
+                cases.append(
+                    LanguageCase(
+                        f"sf_at_most_{alphabet_key}_{symbol}_{maximum}",
+                        f"#{symbol} is at most {maximum}",
+                        frozenset(alphabet),
+                        lambda a=set(alphabet), s=symbol, k=maximum: threshold_counter(
+                            a, {s: k + 1}, lambda state: state[0] <= k
+                        ),
+                    )
+                )
+
+    for alphabet in alphabets[1:]:
+        alphabet_key = "".join(sorted(alphabet))
+        for symbol in sorted(alphabet):
+            cases.append(
+                LanguageCase(
+                    f"sf_begins_{alphabet_key}_{symbol}",
+                    f"starts with {symbol}",
+                    frozenset(alphabet),
+                    lambda a=set(alphabet), s=symbol: begins_with(a, s),
+                )
+            )
+            cases.append(
+                LanguageCase(
+                    f"sf_ends_{alphabet_key}_{symbol}",
+                    f"ends with {symbol}",
+                    frozenset(alphabet),
+                    lambda a=set(alphabet), s=symbol: ends_with(a, s),
+                )
+            )
+
+    pattern_alphabets = alphabets[1:]
+    for alphabet, pattern in take_patterns(pattern_alphabets, (2, 3), 24):
+        alphabet_key = "".join(sorted(alphabet))
+        cases.append(
+            LanguageCase(
+                f"sf_contains_{alphabet_key}_{pattern}",
+                f"contains {pattern} as a substring",
+                frozenset(alphabet),
+                lambda a=set(alphabet), p=pattern: substring_dfa(a, p),
+            )
+        )
+
+    for alphabet, pattern in take_patterns(pattern_alphabets, (3, 4), 20):
+        alphabet_key = "".join(sorted(alphabet))
+        cases.append(
+            LanguageCase(
+                f"sf_suffix_{alphabet_key}_{pattern}",
+                f"ends with {pattern}",
+                frozenset(alphabet),
+                lambda a=set(alphabet), p=pattern: substring_dfa(
+                    a, p, accept_when_seen=False
+                ),
+            )
+        )
+
+    for alphabet, word in take_patterns(pattern_alphabets, (3, 4), 16):
+        alphabet_key = "".join(sorted(alphabet))
+        cases.append(
+            LanguageCase(
+                f"sf_exact_word_{alphabet_key}_{word}",
+                f"is exactly {word}",
+                frozenset(alphabet),
+                lambda a=set(alphabet), w=word: exact_word_dfa(a, w),
+            )
+        )
+
+    orders = []
+    for alphabet in pattern_alphabets:
+        alphabet_orders = list(permutations(sorted(alphabet)))
+        limit = {2: 2, 3: 6, 4: 4}[len(alphabet)]
+        orders.extend((alphabet, "".join(order)) for order in alphabet_orders[:limit])
+    for alphabet, order in orders:
+        alphabet_key = "".join(sorted(alphabet))
+        cases.append(
+            LanguageCase(
+                f"sf_ordered_{alphabet_key}_{order}",
+                f"belongs to {'*'.join(order)}*",
+                frozenset(alphabet),
+                lambda a=set(alphabet), o=order: ordered_blocks(a, o),
+                "".join(symbol + "*" for symbol in order),
+            )
+        )
+
+    if len(cases) != 240:
+        raise AssertionError(f"expected 240 star-free cases, got {len(cases)}")
+    return tuple(cases)
+
+
 CASES = {
-    "commutative": COMMUTATIVE_CASES,
-    "star_free": star_free_cases(),
-    "alphabet_3": alphabet_three_cases(),
-    "complex_commutative": complex_commutative_cases(),
+    "commutative": large_commutative_cases(),
+    "star_free": large_star_free_cases(),
 }
 
 
@@ -585,10 +841,12 @@ def run_once(target: DFA, alphabet: set[str], oracle: Oracle, strategy: str) -> 
     if strategy == "promote_to_p" and learner.monoid_check_count != 0:
         raise AssertionError("promote_to_p unexpectedly ran Monoid Consistency Check")
 
+    eq_ms = learner.eq_time * 1000
     return elapsed_ms, {
         "mq": learner.mq_count,
         "eq": learner.eq_count,
-        "eq_ms": learner.eq_time * 1000,
+        "eq_ms": eq_ms,
+        "local_ms": elapsed_ms - eq_ms,
         "skipped_eq": learner.skipped_eq_count,
         "monoid_checks": learner.monoid_check_count,
         "monoid_check_ms": learner.monoid_probe_time * 1000,
@@ -601,24 +859,81 @@ def run_once(target: DFA, alphabet: set[str], oracle: Oracle, strategy: str) -> 
     }
 
 
+def percentile(values: list[float], probability: float) -> float:
+    """Return a linearly interpolated percentile for a non-empty sample."""
+    ordered = sorted(values)
+    position = (len(ordered) - 1) * probability
+    lower = int(position)
+    upper = min(lower + 1, len(ordered) - 1)
+    fraction = position - lower
+    return ordered[lower] + (ordered[upper] - ordered[lower]) * fraction
+
+
+def timing_summary(values: list[float], prefix: str) -> dict[str, float]:
+    """Summarize one timing dimension without mixing independently timed medians."""
+    return {
+        f"median_{prefix}_ms": statistics.median(values),
+        f"q1_{prefix}_ms": percentile(values, 0.25),
+        f"q3_{prefix}_ms": percentile(values, 0.75),
+        f"min_{prefix}_ms": min(values),
+        f"max_{prefix}_ms": max(values),
+    }
+
+
 def summarize_strategy(times: list[float], metrics: list[dict]) -> dict:
     """Summarize timings while requiring deterministic structural counters."""
     representative = metrics[0]
-    timing_keys = {"eq_ms", "monoid_check_ms"}
+    timing_keys = {"eq_ms", "local_ms", "monoid_check_ms"}
     stable_keys = set(representative) - timing_keys
     for sample in metrics[1:]:
         if any(sample[key] != representative[key] for key in stable_keys):
             raise AssertionError("non-deterministic structural counters")
 
+    eq_times = [sample["eq_ms"] for sample in metrics]
+    local_times = [sample["local_ms"] for sample in metrics]
+    monoid_times = [sample["monoid_check_ms"] for sample in metrics]
     result = {
         "median_ms": statistics.median(times),
+        "q1_ms": percentile(times, 0.25),
+        "q3_ms": percentile(times, 0.75),
         "min_ms": min(times),
         "max_ms": max(times),
-        **representative,
+        **{key: representative[key] for key in stable_keys},
+        "eq_ms": statistics.median(eq_times),
+        "local_ms": statistics.median(local_times),
+        "monoid_check_ms": statistics.median(monoid_times),
+        **timing_summary(local_times, "local"),
+        "samples": {
+            "total_ms": times,
+            "eq_ms": eq_times,
+            "local_ms": local_times,
+            "monoid_check_ms": monoid_times,
+        },
     }
-    for key in timing_keys:
-        result[key] = statistics.median(sample[key] for sample in metrics)
     return result
+
+
+def git_revision() -> str:
+    """Return the current revision without making benchmark output depend on Git."""
+    try:
+        return subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"],
+            text=True,
+            stderr=subprocess.DEVNULL,
+        ).strip()
+    except (OSError, subprocess.CalledProcessError):
+        return "unknown"
+
+
+def environment_metadata() -> dict[str, str]:
+    """Record enough platform context to interpret machine-dependent timings."""
+    return {
+        "platform": platform.platform(),
+        "machine": platform.machine(),
+        "processor": platform.processor() or "unknown",
+        "python": platform.python_version(),
+        "git_revision": git_revision(),
+    }
 
 
 def case_metadata(group: str, case: LanguageCase, target: DFA, oracle: Oracle) -> dict:
@@ -629,6 +944,7 @@ def case_metadata(group: str, case: LanguageCase, target: DFA, oracle: Oracle) -
         "description": case.description,
         "regex": verified_regex(target, set(case.alphabet), case.regex),
         "alphabet": sorted(case.alphabet),
+        "alphabet_size": len(case.alphabet),
         "dfa_states": len(target.states),
         "monoid_states": oracle.target_monoid_size,
     }
@@ -793,6 +1109,7 @@ def main() -> None:
         "group": args.group,
         "mode": "pilot" if args.pilot else "benchmark",
         "repeats": 1 if args.pilot else repeats,
+        "environment": environment_metadata(),
         "results": results,
     }
     rendered = json.dumps(payload, indent=2, ensure_ascii=False)

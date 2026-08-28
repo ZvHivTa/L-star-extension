@@ -27,7 +27,7 @@ Runner 会直接审计交换语言的 syntactic monoid 是否交换，并审计 
 
 原始数据：[commutative.json](benchmark_data/commutative.json)、[star_free.json](benchmark_data/star_free.json)、[alphabet_3.json](benchmark_data/alphabet_3.json)。
 
-复现实验脚本：[compare_language_categories.py](../../tests/compare_language_categories.py)。
+复现实验脚本：[compare_language_categories.py](../../experiments/compare_language_categories.py)。
 
 ## 3. 总体结果
 

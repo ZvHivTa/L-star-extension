@@ -47,7 +47,7 @@ C_k = (b*a 重复 k 次)*b*
 - [medium JSON](benchmark_data/strategy_comparison_2026-07-22_medium.json)
 - [stress JSON](benchmark_data/strategy_comparison_2026-07-22_stress.json)
 
-复现脚本：[compare_strategy_groups.py](../tests/compare_strategy_groups.py)
+复现脚本：[compare_strategy_groups.py](../../experiments/compare_strategy_groups.py)
 
 ## 3. 总体结果
 
