@@ -8,9 +8,11 @@ experiments/
 ├── compare_language_categories.py  # current grouped benchmark
 ├── compare_strategies.py          # original small comparison
 ├── compare_strategy_groups.py     # ordinary/medium/stress comparison
+├── compare_table_materialization.py # materialized/virtual table ablation
 └── reports/
     ├── generate_language_category_report.py
-    └── generate_main_decision_report.py
+    ├── generate_main_decision_report.py
+    └── generate_table_removal_report.py
 ```
 
 Run these files as modules from the repository root. For example:
@@ -18,6 +20,8 @@ Run these files as modules from the repository root. For example:
 ```powershell
 python -m experiments.compare_language_categories --group commutative --output result.json
 python -m experiments.reports.generate_main_decision_report --input-dir benchmark_data --output-dir experiment_output
+python -m experiments.compare_table_materialization
+python -m experiments.reports.generate_table_removal_report
 ```
 
 Experiment runners write machine-readable benchmark data. Files under

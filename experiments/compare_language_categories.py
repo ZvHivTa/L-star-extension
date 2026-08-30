@@ -855,7 +855,7 @@ def run_once(target: DFA, alphabet: set[str], oracle: Oracle, strategy: str) -> 
         "p_size": len(learner.P),
         "i_size": len(learner.I),
         "s_size": len(learner.S),
-        "table_cells": len(learner.table),
+        "table_cells": learner.observation_cell_count(),
     }
 
 

@@ -49,16 +49,12 @@ class Learner:
     # 初始化与通用工具
     # ------------------------------------------------------------------
     def reset_learning_state(self):
-        """重置观测表、增量填表标记和性能统计。"""
+        """重置学习集合、派生缓存和性能统计。"""
         self.P = {""}
         self.S = {""}
         self.I = {""}
-        self.table = {}
         self.state_to_rep = {}
 
-        self.filled_rows = set()
-        self.processed_P = set()
-        self.processed_S = set()
         self.row_cache = {}
         self.suffix_row_cache = {}
         self.sorted_p_cache = None
@@ -144,11 +140,6 @@ class Learner:
         self.mq_count += 1
         return value
 
-    def _fill_cell(self, i, p, s):
-        """填充 3D 观测表中的一个单元格 T[i, p, s]。"""
-        if (i, p, s) not in self.table:
-            self.table[(i, p, s)] = self._ask_teacher(p + i + s)
-
     def get_row(self, i):
         """读取行 i 在所有 (p, s) 语境下的布尔特征向量。"""
         cached = self.row_cache.get(i)
@@ -158,9 +149,7 @@ class Learner:
         row_values = []
         for p in self.sorted_p():
             for s in self.sorted_s():
-                if (i, p, s) not in self.table:
-                    self._fill_cell(i, p, s)
-                row_values.append(self.table[(i, p, s)])
+                row_values.append(self._ask_teacher(p + i + s))
 
         row = tuple(row_values)
         self.row_cache[i] = row
@@ -174,51 +163,15 @@ class Learner:
 
         row_values = []
         for s in self.sorted_s():
-            if (i, "", s) not in self.table:
-                self._fill_cell(i, "", s)
-            row_values.append(self.table[(i, "", s)])
+            row_values.append(self._ask_teacher(i + s))
 
         row = tuple(row_values)
         self.suffix_row_cache[i] = row
         return row
 
-    def fill_table(self):
-        """增量填表：只补新行、新 P 列或新 S 列造成的缺口。"""
-        all_rows = self.needed_rows()
-        new_rows = all_rows - self.filled_rows
-        new_P = self.P - self.processed_P
-        new_S = self.S - self.processed_S
-
-        for i in new_rows:
-            self.fill_row(i)
-
-        for p in new_P:
-            self.fill_prefix_column(p, all_rows)
-
-        for s in new_S:
-            self.fill_suffix_column(s, all_rows)
-
-        self.filled_rows.update(all_rows)
-        self.processed_P = self.P.copy()
-        self.processed_S = self.S.copy()
-
-    def fill_row(self, i):
-        """为新出现的行 i 补齐当前全部 P×S 单元格。"""
-        for p in self.P:
-            for s in self.S:
-                self._fill_cell(i, p, s)
-
-    def fill_prefix_column(self, p, rows):
-        """新左语境 p 加入后，为所有当前行补齐这一组单元格。"""
-        for i in rows:
-            for s in self.S:
-                self._fill_cell(i, p, s)
-
-    def fill_suffix_column(self, s, rows):
-        """新右语境 s 加入后，为所有当前行补齐这一组单元格。"""
-        for i in rows:
-            for p in self.P:
-                self._fill_cell(i, p, s)
+    def observation_cell_count(self):
+        """返回当前虚拟观察表 |I∪IΣ|×|P|×|S| 的理论单元格数。"""
+        return len(self.needed_rows()) * len(self.P) * len(self.S)
 
     # ------------------------------------------------------------------
     # L* 主逻辑
@@ -354,23 +307,10 @@ class Learner:
         return True
 
     def lookup_context_membership(self, left, middle, suffix, context_cache):
-        """Read MQ(left + middle + suffix), reusing existing table cells when possible."""
+        """Read MQ(left + middle + suffix), reusing the current check and MQ caches."""
         key = (left, middle, suffix)
         if key in context_cache:
             return context_cache[key]
-
-        if left in self.P and suffix in self.S:
-            cell = self.table.get((middle, left, suffix))
-            if cell is not None:
-                context_cache[key] = cell
-                return cell
-
-        shifted_middle = left + middle
-        if suffix in self.S:
-            cell = self.table.get((shifted_middle, "", suffix))
-            if cell is not None:
-                context_cache[key] = cell
-                return cell
 
         value = self._ask_teacher(left + middle + suffix)
         context_cache[key] = value
@@ -574,12 +514,13 @@ class Learner:
         return header
 
     def write_table_rows(self, file_obj, rows, sorted_p, sorted_s, col_width, row_header_width):
-        """写入一组观察表行。"""
+        """从 MQ 缓存按需生成并写入一组虚拟观察表行。"""
         for row in rows:
             line = f"{self.format_string(row, row_header_width):<{row_header_width}} |"
             for p in sorted_p:
                 for s in sorted_s:
-                    line += f" {self.format_cell(self.table.get((row, p, s))):^{col_width}} |"
+                    value = self._ask_teacher(p + row + s)
+                    line += f" {self.format_cell(value):^{col_width}} |"
             file_obj.write(line + "\n")
 
     def format_cell(self, value):
@@ -634,9 +575,8 @@ class Learner:
                 return hypothesis
 
     def run_table_phase(self, step):
-        """填表、可选保存表格快照、检查闭合性；闭合时返回假设 DFA。"""
+        """按需查询、可选保存表格快照、检查闭合性；闭合时返回假设 DFA。"""
         start = time.perf_counter()
-        self.fill_table()
 
         if self.debug_mode:
             self.save_table_snapshot(step)

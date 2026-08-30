@@ -229,7 +229,7 @@ The integrated learner includes several implementation-level optimizations:
 - cached row vectors for `get_row(i)`
 - cached sorted `P`, `S`, and `I`
 - cached right extensions
-- reused observation table cells during monoid consistency checks
+- on-demand virtual observation rows backed by the global MQ cache
 - local context cache inside each monoid consistency pass
 - skipped EQ calls after language equivalence is already confirmed
 
