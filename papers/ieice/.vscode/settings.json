@@ -1,0 +1,82 @@
+{
+  "latex-workshop.latex.outDir": "%DIR%/build",
+  "latex-workshop.latex.tools": [
+    {
+      "name": "latexmk-build",
+      "command": "latexmk",
+      "args": [
+        "-synctex=1",
+        "-interaction=nonstopmode",
+        "-file-line-error",
+        "-pdf",
+        "-cd",
+        "-outdir=%DIR%/build",
+        "%DOC%"
+      ]
+    }
+  ],
+  "latex-workshop.latex.recipes": [
+    {
+      "name": "latexmk (build directory)",
+      "tools": [
+        "latexmk-build"
+      ]
+    }
+  ],
+  "latex-workshop.latex.recipe.default": "first",
+  "latex-workshop.latex.search.rootFiles.include": [
+    "ieice_draft.tex"
+  ],
+  "latex-workshop.latex.search.rootFiles.exclude": [
+    "**/ieice-tecrep_v1.1/**",
+    "**/build/**"
+  ],
+  "latex-workshop.latex.watch.files.ignore": [
+    "**/*.aux",
+    "**/*.bbx",
+    "**/*.bbl",
+    "**/*.cbx",
+    "**/*.cfg",
+    "**/*.clo",
+    "**/*.cnf",
+    "**/*.def",
+    "**/*.dfu",
+    "**/*.enc",
+    "**/*.fd",
+    "**/*.fmt",
+    "**/*.gls",
+    "**/*.lbx",
+    "**/*.map",
+    "**/*.mkii",
+    "**/*.out",
+    "**/*.pfb",
+    "**/*.tfm",
+    "**/*.vf",
+    "**/*.code.tex",
+    "**/*.sty",
+    "**/texmf-{dist,var}/**",
+    "**/Local/MiKTeX/**",
+    "**/Local/Programs/MiKTeX/**",
+    "**/Roaming/MiKTeX/**",
+    "**/Program*/MiKTeX*/**",
+    "**/.miktex/texmfs/**",
+    "/var/cache/miktex-texmf/**",
+    "/usr/local/share/miktex-texmf/**",
+    "**/Library/Application Support/MiKTeX/texmfs/**",
+    "/dev/null",
+    "**/ieice-tecrep_v1.1/**",
+    "**/build/**"
+  ],
+  "latex-workshop.latex.autoBuild.onSave.files.ignore": [
+    "**/*.sty",
+    "**/*.cls",
+    "**/ieice-tecrep_v1.1/**"
+  ],
+  "files.watcherExclude": {
+    "**/ieice-tecrep_v1.1/**": true
+  },
+  "files.readonlyInclude": {
+    "**/ieice-tecrep_v1.1/**": true
+  },
+  "latex-workshop.latex.clean.subfolder.enabled": false
+}

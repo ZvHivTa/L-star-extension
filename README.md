@@ -92,6 +92,8 @@ P grows when syntactic monoid consistency is violated.
 │   └── reports/
 ├── experiment_results/
 ├── tests/
+├── papers/
+│   └── ieice/
 └── docs/
 ```
 
@@ -107,6 +109,12 @@ Important files:
 - `experiment_results/`: dated reports, raw benchmark JSON, and generated figures.
 - `tests/`: focused regression tests for learner behavior and experiment statistics.
 - `docs/`: project notes and work logs.
+- `papers/ieice/`: self-contained IEICE LaTeX manuscript; open this folder
+  independently for paper editing. See its [build and setup instructions](papers/ieice/README.md).
+
+To compile the manuscript from the repository root, install a TeX distribution
+with latexmk and run `latexmk -cd -pdf -outdir=build papers/ieice/ieice_draft.tex`.
+Paper build products stay in `papers/ieice/build/` and are excluded from Git.
 
 ## Requirements
 

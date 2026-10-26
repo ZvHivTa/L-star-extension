@@ -1,0 +1,13 @@
+/build/
+/ieice-tecrep_v1.1/
+__MACOSX/
+*.pdf
+*.bbl
+*.blg
+*.aux
+*.log
+*.out
+*.toc
+*.fls
+*.fdb_latexmk
+*.synctex.gz
