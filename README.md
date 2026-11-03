@@ -204,7 +204,11 @@ Reported metrics include:
 - EQ count
 - skipped EQ count
 
-The integrated learner can skip repeated EQ calls after language equivalence has already been confirmed and only `P` has changed due to algebraic refinement.
+Every newly built hypothesis is submitted to EQ, including after algebraic refinement adds a left context to `P`. A successful approximate EQ applies only to the tested hypothesis. The legacy skipped-EQ metric is retained for experiment compatibility and is always zero.
+
+Both learners infer the RS endpoint labels from a valid binary counterexample and the hypothesis, rather than issuing endpoint MQs. For a nonempty counterexample of length `m`, binary search adds at most `ceil(log2(m))` MQs. This assumes reliable membership answers and a genuine counterexample from EQ.
+
+Historical experiment files describe the earlier EQ schedule and RS endpoint queries. Rerun experiments before using their EQ/MQ counts or timings for the current implementation.
 
 ## Debug Snapshots
 
@@ -239,7 +243,7 @@ The integrated learner includes several implementation-level optimizations:
 - cached right extensions
 - on-demand virtual observation rows backed by the global MQ cache
 - local context cache inside each monoid consistency pass
-- skipped EQ calls after language equivalence is already confirmed
+- RS endpoint inference without additional membership queries
 
 The oracles use `deque` for BFS shortest-counterexample search.
 

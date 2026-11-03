@@ -153,6 +153,8 @@ class ClassicLearner:
 
             word = counterexample
             word_length = len(word)
+            if not word:
+                raise ValueError("RS requires a nonempty valid counterexample.")
 
             reps = []
             current = hypothesis.initial_state
@@ -164,23 +166,19 @@ class ClassicLearner:
             low = 0
             high = word_length
 
-            q_low = self.oracle.membership_query(reps[low] + word[low:])
-            q_high = self.oracle.membership_query(reps[high] + word[high:])
+            # The traced final state gives the model label; a valid CE has its opposite.
+            q_low = current not in hypothesis.final_states
 
-            if q_low != q_high:
-                while low + 1 < high:
-                    mid = (low + high) // 2
-                    q_mid = self.oracle.membership_query(reps[mid] + word[mid:])
+            while low + 1 < high:
+                mid = (low + high) // 2
+                probe = reps[mid] + word[mid:]
+                q_mid = q_low if probe == word else self.oracle.membership_query(probe)
 
-                    if q_mid == q_low:
-                        low = mid
-                    else:
-                        high = mid
+                if q_mid == q_low:
+                    low = mid
+                else:
+                    high = mid
 
-                distinguishing_suffix = word[high:]
-                self.S.add(distinguishing_suffix)
-                self.invalidate_cache(rows=True, s=True)
-            else:
-                for length in range(1, word_length + 1):
-                    self.S.add(word[-length:])
-                self.invalidate_cache(rows=True, s=True)
+            distinguishing_suffix = word[high:]
+            self.S.add(distinguishing_suffix)
+            self.invalidate_cache(rows=True, s=True)

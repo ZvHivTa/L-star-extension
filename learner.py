@@ -69,7 +69,7 @@ class Learner:
         self.monoid_check_count = 0
         self.eq_time = 0.0
         self.eq_count = 0
-        self.language_confirmed = False
+        # Retained for compatibility with saved experiment metrics; EQ is never skipped.
         self.skipped_eq_count = 0
         self.promoted_i_to_p_count = 0
         self.right_consistency_refinements = 0
@@ -229,7 +229,6 @@ class Learner:
                             self.log(f"               >> 行动: 将后缀 '{new_suffix}' 加入 S 集合！")
                             self.S.add(new_suffix)
                             self.right_consistency_refinements += 1
-                            self.language_confirmed = False
                             self.invalidate_context_cache(s_changed=True)
                             return False
 
@@ -370,13 +369,7 @@ class Learner:
     def handle_breakpoint_counterexample(self, counterexample, hypothesis):
         """Rivest-Schapire 二分断点策略，只加入关键区分后缀。"""
         reps = self.trace_hypothesis_representatives(counterexample, hypothesis)
-        low, high = self.find_breakpoint(counterexample, reps)
-
-        if low is None:
-            self.S.add(counterexample)
-            self.P.add(counterexample)
-            self.invalidate_context_cache(p_changed=True, s_changed=True)
-            return
+        low, high = self.find_breakpoint(counterexample, reps, hypothesis)
 
         distinguishing_suffix = counterexample[high:]
         prefix_to_add = reps[low]
@@ -401,18 +394,20 @@ class Learner:
 
         return reps
 
-    def find_breakpoint(self, word, reps):
+    def find_breakpoint(self, word, reps, hypothesis):
         """在反例轨迹上二分查找 teacher 判定发生翻转的位置。"""
+        if not word:
+            raise ValueError("RS requires a nonempty valid counterexample.")
         low, high = 0, len(word)
-        q_low = self._ask_teacher(reps[low] + word[low:])
-        q_high = self._ask_teacher(reps[high] + word[high:])
-
-        if q_low == q_high:
-            return None, None
+        # A valid binary counterexample has the opposite label to the hypothesis.
+        # The other endpoint is the final state's representative, with the model label.
+        q_low = not hypothesis.accepts_input(word)
 
         while low + 1 < high:
             mid = (low + high) // 2
-            q_mid = self._ask_teacher(reps[mid] + word[mid:])
+            probe = reps[mid] + word[mid:]
+            # A midpoint can spell the original CE, whose label is already inferred.
+            q_mid = q_low if probe == word else self._ask_teacher(probe)
             if q_mid == q_low:
                 low = mid
             else:
@@ -557,12 +552,8 @@ class Learner:
             if self.debug_mode:
                 self.save_hypothesis_snapshot(hypothesis, step - 1)
 
-            if not self.language_confirmed:
-                if self.run_equivalence_phase(hypothesis):
-                    continue
-            else:
-                self.skipped_eq_count += 1
-                self.log("  [交卷] 语言等价性已确认，跳过本轮 EQ，直接进入代数自检...")
+            if self.run_equivalence_phase(hypothesis):
+                continue
 
             if self.monoid_strategy == "promote_to_p":
                 self.total_end_time = time.perf_counter()
@@ -602,11 +593,9 @@ class Learner:
         self.eq_count += 1
 
         if counterexample is None:
-            self.language_confirmed = True
             return False
 
         start = time.perf_counter()
-        self.language_confirmed = False
         self.handle_counterexample(counterexample, hypothesis)
         self.lstar_pure_time += time.perf_counter() - start
         return True
