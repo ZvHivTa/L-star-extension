@@ -52,17 +52,12 @@
 \affiliate[Nagoya]{Nagoya University\\\NagoyaAddress}
 \begin{document}
 \begin{abstract}
-This essay introduces an algorithm for learning
-the syntactic monoid of an unknown regular language based on the original L-star algorithm. 
-We will define the extended observation table and the
-corresponding hypothesis acceptor, explain essential properties including closedness, right
-consistency, and monoid consistency, and analyze the complexity of the
-learning process. By monoid consistency, we will introduce two strategies to learn syntactic monoids.
-Future work will implement both strategies in a simulated active
-learning environment, examine which classes of regular languages
-favor each strategy, and compare their query and computational costs
-with learning a minimal DFA using \(L^*\) and then constructing its
-transition monoid.
+We extend Angluin's \(L^*\) algorithm to learn the syntactic monoid of an
+unknown regular language through membership and equivalence queries.
+An extended observation table with left and right contexts supports two
+strategies based on monoid consistency. We prove that their outputs
+represent the target syntactic monoid and analyze their query and
+computational costs.
 \end{abstract}
 \begin{keyword}
 syntactic monoid, regular language, active automata learning, observation table, monoid consistency
@@ -79,16 +74,17 @@ membership and equivalence queries~\cite{angluin87}. In this paper,
 does not require access to an internal representation of \(U\):
 membership queries determine whether a word belongs to \(U\), while
 equivalence queries test a hypothesis and return a counterexample when
-it is incorrect. Active automata learning has also been used beyond
-the original setting; for example, Khmelnitsky et al.\ learn a DFA
+it is incorrect.
+
+The \(L^*\) algorithm has found numerous applications in active learning.
+Khmelnitsky et al.\ learn a DFA
 surrogate of a recurrent neural network for property-directed
 verification~\cite{khmelnitsky2020property}.
 Vazquez-Chanlatte et al.\ combine active automata learning with large
-language models to learn DFA task specifications from natural language,
+language models to infer DFA task specifications from natural language,
 labeled examples, and expert demonstrations~\cite{vazquezchanlatte2025lstarlm}.
-Chen et al.\ introduce CEDAR, which applies active automata learning
-to construct DFAs for embodied skills and natural-language constraints,
-then composes them to enforce the learned constraints during
+Chen et al.\ introduce CEDAR, which learns and composes DFAs
+representing embodied skills and natural-language constraints to guide
 execution~\cite{chen2026cedar}.
 
 A minimal DFA captures the behavior of a language through its states
@@ -96,14 +92,24 @@ and transitions. The syntactic monoid additionally exposes the algebra
 of word concatenation, making algebraic properties of the language
 accessible. For example, a regular language is star-free exactly when
 its syntactic monoid is aperiodic~\cite{SCHUTZENBERGER1965190}.
+Equivalently, its minimal DFA is permutation-free: no word induces
+a nontrivial permutation on any subset of its
+states~\cite{mcnaughton1971counterfree}. This condition concerns
+transformations induced by arbitrary words and is not directly apparent
+from the DFA's transition graph; deciding permutation-freeness is
+PSPACE-complete. In contrast, aperiodicity
+gives a concise algebraic characterization through the stabilization
+of powers: there exists \(N\ge1\) such that \(x^N=x^{N+1}\) for every
+monoid element \(x\).
 The syntactic monoid is isomorphic to the transition monoid of the
 minimal DFA. A conventional route to learning it is therefore to run
 the original \(L^*\) algorithm to obtain the minimal DFA and then
-compute the transformations of its state set induced by all words.
-These transformations form the DFA's transition monoid, which is
-isomorphic to the syntactic monoid. Our aim is to construct a
+compute the distinct transformations of its state set induced by words.
+Our aim is to construct a
 representation of the syntactic monoid within the active learning
-process itself.
+process itself. This approach may be useful in settings that require
+distinguishing words by their behavior under both left and right
+contexts.
 
 These two representations arise from different equivalence relations
 on words. The states of the minimal DFA correspond to classes of the
@@ -166,17 +172,17 @@ function extends to \(\delta^*:Q\times\Sigma^*\to Q\) by
 \quad(w\in\Sigma^*,\ a\in\Sigma).
 \end{aligned}
 \]
-The language accepted by \(\mathcal{A}\) is defined as 
+The language accepted by \(\mathcal{A}\) is defined as
 \(L(\mathcal{A})=\{w\in\Sigma^*\mid\delta^*(q_0,w)\in F\}\).
 
 A \emph{minimal DFA} for a regular language \(L\) is a DFA with the fewest states that accepts \(L\).
-Every regular language has a unique minimal DFA \(\mathcal{A}_L\), and \(\mathcal{A}_L\) can be constructed as described follows: 
+Every regular language has a unique minimal DFA \(\mathcal{A}_L\), and \(\mathcal{A}_L\) can be constructed as follows:
 % Every state of a minimal DFA is reachable from its
 % initial state, and any two distinct states \(q,q'\) can be
 % distinguished by a word \(z\in\Sigma^*\): exactly one of
 % \(\delta^*(q,z)\) and \(\delta^*(q',z)\) belongs to \(F\).
-% Therefore, 
-Let \(\equiv^{\mathrm{MN}} \subseteq \Sigma^* \times \Sigma^*\) be the equivalence relation such that
+% Therefore,
+Let \(\equiv_L^{\mathrm{MN}} \subseteq \Sigma^* \times \Sigma^*\) be the equivalence relation such that
 \[
 w\equiv_L^{\mathrm{MN}}w^{\prime}
 \Longleftrightarrow
@@ -241,7 +247,7 @@ Indeed, \(\delta_L^*(1_L,w)=\eta_L(w)=[w]_L\), so a word
 \(w\) is accepted exactly when \(w\in L\).
 Consequently, the right Cayley graph of the syntactic monoid,
 equipped with these initial and accepting states, is a DFA
-recognizing \(L\). The state set of DFA \(\mathcal{M}_L\) has \(|M(L)|\) elements and is larger than that of the minimal DFA generally. 
+recognizing \(L\). The state set of DFA \(\mathcal{M}_L\) has \(|M(L)|\) elements and is larger than that of the minimal DFA generally.
 
 \section{Algorithm}\label{algorithm}
 
@@ -262,7 +268,7 @@ We denote the answer by the characteristic function
 Thus a membership query accepts \(w\) when \(\chi(w)=1\) and
 rejects it when \(\chi(w)=0\).
 
-\textbf{Equivalence Queries.} When the observation table \(OT\) is closed, we can obtain a hypothesis
+\textbf{Equivalence Queries.} When the observation table \(\mathrm{OT}\) is closed, we can obtain a hypothesis
 automaton \(\mathcal{M}\) according to the definition of the acceptor.
 Then the teacher answers whether or not the unknown regular language
 \(U\) is the language accepted by \(\mathcal{M}\).
@@ -276,11 +282,11 @@ Consequently,
 w \in L(\mathcal{M}) \Longleftrightarrow w \in U.
 \]
 
-If the teacher answers ``no'' to the equivalence query, then the teacher provides a counterexample \(w \in \Sigma^*\) such that 
+If the teacher answers ``no'' to the equivalence query, then the teacher provides a counterexample \(w \in \Sigma^*\) such that
 \[
-w \in L(\mathcal{M}) \text{ and } w \notin U.
+w \in L(\mathcal{M}) \text{ and } w \notin U,
 \]
-or vice versa. The learner can refine the observation table using this counterexample and repeat the learning process. 
+or vice versa. The learner can refine the observation table using this counterexample and repeat the learning process.
 
 \textbf{Extended Observation Table.} In Angluin's original \(L^*\) algorithm~\cite{angluin87}, an
 observation table is a triple \((R,E,T_0)\), where \(R\) is a
@@ -289,33 +295,33 @@ nonempty finite set of test words. The function
 \(T_0:(R\cup R\Sigma)E\to\{0,1\}\) records membership through
 \(T_0(w)=\chi(w)\) on its domain.
 Rows are indexed by \(R\cup R\Sigma\), columns by \(E\), and
-the entry at row \(r\) and column \(e\) is \(T_0(re)\). 
+the entry at row \(r\) and column \(e\) is \(T_0(re)\).
 
 To learn syntactic congruence classes, we extend the observation table
 to include left contexts as well. Our extended observation table
 is a 4-tuple
 \[
-OT = (I,P,S,T),
+\mathrm{OT} = (I,P,S,T),
 \]
 
-where  \(I,P,S \subseteq \Sigma^*\) are finite sets, and \(T\) is the function 
+where  \(I,P,S \subseteq \Sigma^*\) are finite sets, and \(T\) is the function
 \[
-T : P\times( I \cup I \cdot \Sigma) \times S \rightarrow \{0,1\}
+T : P\times( I \cup I \cdot \Sigma) \times S \to \{0,1\}
 \]
 defined by \(T(p,i,s)=\chi(pis)\). The roles of the sets are as follows:
 
 \begin{itemize}
 \tightlist
 \item
-  Elements of \(I\) are candidates for right Cayley graph states of the syntactic monoid of \(U\). 
+  Elements of \(I\) are candidates for right Cayley graph states of the syntactic monoid of \(U\).
   In particular, if
   \[
-  \forall p\in P,\forall s\in S,\quad
+  \forall p\in P,\ \forall s\in S,\quad
   T(p,i,s) = T(p,i',s)
   \]
-  for \(i,i'\in I\cup I\Sigma\), 
+  for \(i,i'\in I\cup I\Sigma\),
   then \(i\) and \(i'\) are regarded as the same state.
-\item  
+\item
   Elements of \(P\) correspond to test prefixes for these states.
 \item
   Elements of \(S\) correspond to test suffixes for these states.
@@ -345,69 +351,71 @@ Row set & Entries indexed by \(P \times S\) \\
 
 \textbf{Rows and Status Equivalence.}
 For each \(i\in I\cup I\Sigma\), define the row function
-\(\mathrm{row}_{P,S}(i):P\times S\to\{0,1\}\) by
-\(\mathrm{row}_{P,S}(i)(p,s)=T(p,i,s)\).
+\(\operatorname{row}_{P,S}(i):P\times S\to\{0,1\}\) by
+\(\operatorname{row}_{P,S}(i)(p,s)=T(p,i,s)\).
 For an arbitrary word \(x\in\Sigma^*\), extend this notation by
-\(\mathrm{row}_{P,S}(x)(p,s)=\chi(pxs)\). This agrees with the
+\(\operatorname{row}_{P,S}(x)(p,s)=\chi(pxs)\). This agrees with the
 stored table rows whenever \(x\in I\cup I\Sigma\), and also
 defines rows for words not currently stored in the table.
 
-We define \emph{status equivalence relation} \(\equiv_{\mathrm{status}} \subseteq \Sigma^* \times \Sigma^*\) as
+We define the \emph{status equivalence relation} \(\equiv_{\mathrm{status}} \subseteq \Sigma^* \times \Sigma^*\) as
 \[
 i \equiv_{\mathrm{status}} i'
 \Longleftrightarrow
-\text{row}_{P,S}(i)=\text{row}_{P,S}(i')
+\operatorname{row}_{P,S}(i)=\operatorname{row}_{P,S}(i')
 \]
 for each \(i,i^{\prime} \in \Sigma^*\).
 We use \([i]_{\mathrm{status}}\) to denote the equivalence class of
-\(i\) under this status equivalence. Thus, if \(i \equiv_{\mathrm{status}} i'\), then \([i]_{\mathrm{status}} = [i']_{\mathrm{status}}\). 
-Our algorithm aims that the status equivalence is equal to the syntactic congruence when the algorithm terminates. 
+\(i\) under this status equivalence. Thus, if \(i \equiv_{\mathrm{status}} i'\), then \([i]_{\mathrm{status}} = [i']_{\mathrm{status}}\).
+Our algorithm aims to ensure that the status equivalence is equal to the syntactic congruence when the algorithm terminates.
 
 \textbf{Partial Right Row and Suffix Equivalence.}
-We can consider only the suffix part 
+We can consider only the suffix part
 \[
-\text{row}_{S}(i) \in \{0,1\}^{S}
+\operatorname{row}_{S}(i) \in \{0,1\}^{S}
 \]
 defined by
 \[
-\text{row}_{S}(i) = \bigl(T(\epsilon,i,s)\bigr)_{s\in S}
+\operatorname{row}_{S}(i) = \bigl(T(\epsilon,i,s)\bigr)_{s\in S}
 \]
 for each \(i \in I\cup I\Sigma\).
 For arbitrary \(x\in\Sigma^*\), the corresponding extension is
-\(\text{row}_S(x)=(\chi(xs))_{s\in S}\). 
+\(\operatorname{row}_S(x)=(\chi(xs))_{s\in S}\).
 
-We define \emph{suffix equivalence relation} \(\equiv_{S} \subseteq \Sigma^* \times \Sigma^*\) as 
+We define the \emph{suffix equivalence relation} \(\equiv_{S} \subseteq \Sigma^* \times \Sigma^*\) as
 \[
 i \equiv_{S} i'
 \Longleftrightarrow
-\text{row}_{S}(i)=\text{row}_{S}(i')
+\operatorname{row}_{S}(i)=\operatorname{row}_{S}(i')
 \]
-for each \(i,i' \in \Sigma^*\). In our algorithm, 
-the suffix equivalence is equal to the Myhill-Nerode congruence when the algorithm terminates 
-which is similar to the original \(L^*\) algorithm. 
+for each \(i,i' \in \Sigma^*\). In our algorithm,
+the suffix equivalence is equal to the Myhill-Nerode congruence when the algorithm terminates
+which is similar to the original \(L^*\) algorithm.
 
-Unless explicitly stated otherwise, \(\text{row}(x)\)
-denotes the full row \(\text{row}_{P,S}(x)\). When only the suffix part
-with the empty left context is used, we write \(\text{row}_S(x)\).
+Unless explicitly stated otherwise, \(\operatorname{row}(x)\)
+denotes the full row \(\operatorname{row}_{P,S}(x)\). When only the suffix part
+with the empty left context is used, we write \(\operatorname{row}_S(x)\).
 
 \textbf{Hypothesis Acceptor.}
-Given an observation table \(OT = (I,P,S,T)\), the \emph{hypothesis acceptor} of \((I,P,S,T)\) is a 5-tuple \(\mathcal{M} = (Q,\Sigma,\delta,q_0,F)\), where
+Given an observation table \(\mathrm{OT} = (I,P,S,T)\), the \emph{hypothesis acceptor} of \((I,P,S,T)\) is a 5-tuple \(\mathcal{M} = (Q,\Sigma,\delta,q_0,F)\), where
 \[
-Q = \{\text{row}(i)\mid i \in I\},
+Q = \{\operatorname{row}(i)\mid i \in I\},
 \]
 \[
-q_0 = \text{row}(\epsilon) \in Q,
+q_0 = \operatorname{row}(\epsilon) \in Q,
 \]
 \[
-F = \{\text{row}(i) \in Q \mid T(\epsilon,i,\epsilon)=1\},
+F = \{\operatorname{row}(i) \in Q \mid T(\epsilon,i,\epsilon)=1\},
 \]
 
-and \(\delta:Q \times \Sigma\rightarrow Q\) is the transition function defined as follows:
-For \(q \in Q\) and \(a\in \Sigma\), if \(q = \text{row}(i)\) for some
-\(i \in I\) and \( ia \equiv_{\mathrm{status}} i'\),\(i'\in I\), then \(\delta(q,a)=\text{row}(i')\). 
+and \(\delta:Q \times \Sigma\to Q\) is the transition function defined as follows:
+For \(q \in Q\) and \(a\in \Sigma\), if \(q = \operatorname{row}(i)\) for some
+\(i \in I\) and \( ia \equiv_{\mathrm{status}} i'\),\(i'\in I\), then \(\delta(q,a)=\operatorname{row}(i')\).
 This function is well-defined when the observation table satisfies some properties discussed later.
 
-If the transition function \(\delta\) is well-defined, it can be extended to \(\delta^{*}:Q \times \Sigma^{*} \rightarrow Q\) by 
+For each \(i\in I\), we also write \(q_i:=\operatorname{row}(i)\).
+
+If the transition function \(\delta\) is well-defined, it can be extended to \(\delta^{*}:Q \times \Sigma^{*} \to Q\) by
 \[
 \delta^{*}(q,w) =
 \left\{
@@ -419,8 +427,8 @@ q, & \text{if } w = \epsilon, \\
 \]
 \subsection{Table Properties and Refinement}\label{algorithm-properties-refinement}
 
-In this part, we will introduce some properties, essential to obtain the hypothesis acceptor from our algorithm. 
-In addition, we will discuss how to refine the observation table when these properties are not satisfied. 
+In this part, we will introduce some properties, essential to obtain the hypothesis acceptor from our algorithm.
+In addition, we will discuss how to refine the observation table when these properties are not satisfied.
 
 \textbf{Separability.}
 The observation table is \emph{separable} if no two distinct words in \(I\) are status-equivalent:
@@ -429,18 +437,18 @@ The observation table is \emph{separable} if no two distinct words in \(I\) are 
 i_1 \neq i_2 \Longleftrightarrow i_1 \not\equiv_{\mathrm{status}} i_2.
 \]
 
-The process in our algorithm guarantees that the observation table is separable because 
+The process in our algorithm guarantees that the observation table is separable because
 we add a word to \(I\) only if its row differs
 from every existing row in \(I\). Refining \(P\) or \(S\)
 preserves separability, since adding test words cannot make distinct
-rows equal. 
+rows equal.
 
 \textbf{Closedness.}
-The observation table is \emph{closed} if for every \(i \in I\) and \(a\in \Sigma\), 
+The observation table is \emph{closed} if for every \(i \in I\) and \(a\in \Sigma\),
 there exists \(i'\in I\) such that \(ia \equiv_{\mathrm{status}} i'\).
 That is,
 \[
-\forall i \in I,\forall a \in \Sigma,\exists i' \in I,\quad
+\forall i \in I,\ \forall a \in \Sigma,\ \exists i' \in I,\quad
 ia \equiv_{\mathrm{status}} i'.
 \]
 
@@ -459,8 +467,8 @@ ia \equiv_S i'a.
 \]
 That is,
 \[
-\forall i,i' \in I,\forall a \in \Sigma,\quad
-i \equiv_S i' \rightarrow ia \equiv_S i'a.
+\forall i,i' \in I,\ \forall a \in \Sigma,\quad
+i \equiv_S i' \Longrightarrow ia \equiv_S i'a.
 \]
 
 If right consistency fails, find \(i,i'\in I\),
@@ -476,7 +484,7 @@ define a hypothesis automaton \(\mathcal{M}\).
 \textbf{Monoid Consistency.}
 The observation table is \emph{monoid consistent} if for all \(v,i\in I\), \(t\in I\Sigma\), and \(s\in S\),
 \[
-t\equiv_{\mathrm{status}}v\Rightarrow \chi(its)=\chi(ivs).
+t\equiv_{\mathrm{status}}v\Longrightarrow \chi(its)=\chi(ivs).
 \]
 
 Here the left context \(i\) ranges over \(I\) and need not belong
@@ -518,8 +526,8 @@ so separability is preserved.
 Construct the hypothesis acceptor \(\mathcal{M}\) and submit it as an
 equivalence query. If a counterexample \(w\) is returned, refine \(S\)
 using Angluin's method~\cite{angluin87} or the Rivest--Schapire binary
-search method~\cite{rivest1993inference}, and return to Phase~2. The original Angluin's method adds all prefixes of counterexample \(w\) into 
-\(S\) while the Rivest-Schapire method adds only one approriate suffix of \(w\) into \(S\) which is more efficient.
+search method~\cite{rivest1993inference}, and return to Phase~2. Angluin's original method adds all prefixes of counterexample \(w\) into
+\(S\) while the Rivest-Schapire method adds only one appropriate suffix of \(w\) into \(S\) which is more efficient.
 If \(L(\mathcal{M})=U\), proceed to Phase~4.
 
 \textbf{Phase 4: Monoid Consistency Check and Prefix Refinement.}
@@ -582,18 +590,22 @@ equivalence query.
 
 \section{Correctness of Syntactic Monoid Learning}\label{main-results}
 
+In this section, \(\sim_U\) denotes the syntactic congruence of the
+unknown target language \(U\).
+
 \subsection{Representative Function}\label{definition-representative-function}
 
 Let \(\rho:\Sigma^*\to I\) be the path representative function defined
 by the acceptor: \(\rho(\epsilon)=\epsilon\). If \(x=ya\) with \(a\in\Sigma\) and \(\rho(y)=i\in I\), then by
-closedness there exists \(u\in I\) such that \(ia\equiv_{\mathrm{status}}u\). We define \(\rho(ya)=u\). Intuitively, if we input string \(x\) into the acceptor, it will get
+closedness there exists \(u\in I\) such that \(ia\equiv_{\mathrm{status}}u\). We define \(\rho(ya)=u\). Intuitively, if we input the string \(x\) into the acceptor, it will get
 into a state \(q = \delta^*(q_0,x)\). By the definition of the acceptor,
 there is a representative \(i \in I\) which fulfills
-\(q = \text{row}(i)\). We say \(i\) is the representative of \(x\) in
-this acceptor.
+\(q = \operatorname{row}(i)\). We say \(i\) is the representative of \(x\) in
+this acceptor. Equivalently,
+\(\delta^*(q_0,x)=q_{\rho(x)}\) for every \(x\in\Sigma^*\).
 
 \Needspace{8\baselineskip}
-\subsection{Propositions, Lemma and Theorem}\label{propositions-lemma-and-theorem}
+\subsection{Propositions, a Lemma and a Theorem}\label{propositions-lemma-and-theorem}
 \begin{proposition}[Closedness]\label{proposition-1-closedness}
 If \((I,P,S)\) is separable but not closed, then
 using membership queries one can find \(i' \in I \cdot \Sigma\) such
@@ -616,22 +628,22 @@ T(\epsilon,ia,s) \neq T(\epsilon,i'a,s).
 \]
 
 When we add \(as\) into \(S\), the observation table checks
-\(\text{row}(i)\) and \(\text{row}(i')\) using \(T(\epsilon,i,as) \neq T(\epsilon,i',as)\). Thus, \(i \not\equiv_S i'\). Therefore, refining \(S\) by adding \(as\) makes these two words
+\(\operatorname{row}(i)\) and \(\operatorname{row}(i')\) using \(T(\epsilon,i,as) \neq T(\epsilon,i',as)\). Thus, \(i \not\equiv_S i'\). Therefore, refining \(S\) by adding \(as\) makes these two words
 distinguishable. \hfill $\square$
 
 \begin{proposition}[Equivalence Queries and Suffix-Equivalent Representatives]\label{proposition-2.2-status-equivalence-implies-suffix-equivalence}
 Assume that the observation table
-\(OT=(I,P,S,T)\) is closed, separable, and right consistent.
-Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(OT\),
+\(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
+Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
 and let \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is, \(L(\mathcal{M})=U\). Then for every \(w\in\Sigma^*\), \(w\equiv_S\rho(w)\).
 \end{proposition}
 \noindent\textbf{Proof.} Since \(I\) is prefix-closed, following the prefixes of
 any \(i\in I\) in the acceptor gives
-\(\delta^*(q_0,i)=\text{row}(i)\). By the definition of the path
+\(\delta^*(q_0,i)=\operatorname{row}(i)\). By the definition of the path
 representative function,
 \[
-\delta^*(q_0,w)=\text{row}(\rho(w))
+\delta^*(q_0,w)=\operatorname{row}(\rho(w))
 =\delta^*(q_0,\rho(w)).
 \]
 
@@ -657,13 +669,13 @@ By the definition of suffix equivalence, this means
 
 \begin{proposition}[Right Consistency and Myhill-Nerode Congruence]\label{proposition-2.3-right-consistency-and-myhill-nerode-congruence}
 Assume that the observation table
-\(OT=(I,P,S,T)\) is closed, separable, and right consistent.
-Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(OT\),
+\(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
+Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
 and let \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is, \(L(\mathcal{M})=U\). Then for all \(u,v\in\Sigma^*\),
 \[
 u\equiv_Sv
-\Rightarrow
+\Longrightarrow
 \bigl(\forall y\in\Sigma^*,\quad uy\in U\Longleftrightarrow vy\in U\bigr).
 \]
 \end{proposition}
@@ -723,13 +735,13 @@ uy\in U \Longleftrightarrow \rho(u)y\in U \Longleftrightarrow \rho(v)y\in U \Lon
 
 \begin{proposition}[Right Compatibility of Status Equivalence]\label{proposition-2.4-stable-right-transition-of-status-equivalence-i-dont-have-any-idea-about-the-name-of-this-title}
 Assume that the observation table
-\(OT=(I,P,S,T)\) is closed, separable, and right consistent.
-Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(OT\),
+\(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
+Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
 and let \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is, \(L(\mathcal{M})=U\). Then for all \(u,v\in\Sigma^*\) and \(a\in\Sigma\),
 \[
 u\equiv_{\mathrm{status}}v
-\Rightarrow
+\Longrightarrow
 ua\equiv_{\mathrm{status}}va.
 \]
 \end{proposition}
@@ -740,24 +752,24 @@ ua\equiv_{\mathrm{status}}va.
 
 \begin{proposition}[Status equivalence and Representative]\label{proposition-2.5-status-equivalence-and Representative}
 Assume that the observation table
-\(OT=(I,P,S,T)\) is closed, separable, and right consistent.
-Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(OT\),
+\(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
+Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
 and let \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is, \(L(\mathcal{M})=U\). Then for every \(x\in\Sigma^*\), \(x\equiv_{\mathrm{status}}\rho(x)\). Equivalently, \(\operatorname{row}(x)=\operatorname{row}(\rho(x))\).
 \end{proposition}
 \noindent\textbf{Proof.} We prove the statement by induction on \(|x|\).
 
-\textbf{Base case.} If \(x=\epsilon\), then by definition \(\rho(\epsilon)=\epsilon\). Therefore, \(\epsilon\equiv_{\mathrm{status}}\rho(\epsilon)\).
+\noindent\textbf{Base case.} If \(x=\epsilon\), then by definition \(\rho(\epsilon)=\epsilon\). Therefore, \(\epsilon\equiv_{\mathrm{status}}\rho(\epsilon)\).
 
-\textbf{Induction step.} Let \(x=ya\), where \(a\in\Sigma\). Assume that \(y\equiv_{\mathrm{status}}\rho(y)\). Let \(\rho(y)=i\). By Proposition~\ref{proposition-2.4-stable-right-transition-of-status-equivalence-i-dont-have-any-idea-about-the-name-of-this-title}, since \(\equiv_{\mathrm{status}}\) is right
+\noindent\textbf{Induction step.} Let \(x=ya\), where \(a\in\Sigma\). Assume that \(y\equiv_{\mathrm{status}}\rho(y)\). Let \(\rho(y)=i\). By Proposition~\ref{proposition-2.4-stable-right-transition-of-status-equivalence-i-dont-have-any-idea-about-the-name-of-this-title}, since \(\equiv_{\mathrm{status}}\) is right
 compatible, we have \(ya\equiv_{\mathrm{status}}ia\). By the definition of \(\rho\), we choose \(\rho(ya)\in I\) such that \(ia\equiv_{\mathrm{status}}\rho(ya)\). By transitivity of \(\equiv_{\mathrm{status}}\), we obtain \(ya\equiv_{\mathrm{status}}\rho(ya)\). Thus, \(x\equiv_{\mathrm{status}}\rho(x)\). This completes the induction. Therefore, for every \(x\in\Sigma^*\), \(x\equiv_{\mathrm{status}}\rho(x)\). This proves the proposition.
 \hfill $\square$
 % Proposition~\ref{proposition-2.5-status-equivalence-and Representative} shows that the status equivalence of any string \(x\) is the same as that of its representative \(\rho(x)\) in \(I\). This means that the representative function \(\rho\) preserves the status equivalence classes, and thus the rows of \(x\) and \(\rho(x)\) are identical.
 
 \begin{proposition}[Status Equivalence and transition function]\label{proposition-2.6-status-equivalence-and-transition-function}
 Assume that the observation table
-\(OT=(I,P,S,T)\) is closed, separable, and right consistent.
-Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(OT\),
+\(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
+Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
 and let \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is, \(L(\mathcal{M})=U\). Then for all \(x,y\in\Sigma^*\),
 \[
@@ -783,25 +795,25 @@ x\equiv_{\mathrm{status}}y
 This proves the proposition. \hfill $\square$
 
 \begin{proposition}[Well-definedness of the Hypothesis Automaton]\label{proposition-3-well-definedness-of-the-hypothesis-automaton}
-If the observation table \(OT=(I,P,S,T)\) is closed and separable, then the transition function \(\delta:Q\times\Sigma\to Q\) of the hypothesis automaton \(\mathcal{M}\) is well-defined.
+If the observation table \(\mathrm{OT}=(I,P,S,T)\) is closed and separable, then the transition function \(\delta:Q\times\Sigma\to Q\) of the hypothesis automaton \(\mathcal{M}\) is well-defined.
 Consequently, for all \(q\in Q\) and \(w\in\Sigma^*\), the extended
 transition \(\delta^*(q,w)\) exists and is unique.
 \end{proposition}
 \noindent\textbf{Proof.} First, we prove existence. By the definition of the
 acceptor, for \(i\in I\) and \(a\in\Sigma\), if there exists \(i'\in I\)
-such that \(ia\equiv_{\mathrm{status}}i'\), then \(\delta(\text{row}(i),a)=\text{row}(i')\). Because of closedness, we have
+such that \(ia\equiv_{\mathrm{status}}i'\), then \(\delta(\operatorname{row}(i),a)=\operatorname{row}(i')\). Because of closedness, we have
 \[
-\forall i\in I,\forall a\in\Sigma,\exists i'\in I,\quad
+\forall i\in I,\ \forall a\in\Sigma,\ \exists i'\in I,\quad
 ia\equiv_{\mathrm{status}}i'.
 \]
 
-Since \(i'\in I\), we have \(\text{row}(i')\in Q\). Therefore, \(\delta(\text{row}(i),a)\) exists.
+Since \(i'\in I\), we have \(\operatorname{row}(i')\in Q\). Therefore, \(\delta(\operatorname{row}(i),a)\) exists.
 
 Now we prove uniqueness. Suppose that there are two representatives
 \(i_1',i_2'\in I\) such that \(ia\equiv_{\mathrm{status}}i_1'\) and \(ia\equiv_{\mathrm{status}}i_2'\). Then \(i_1'\equiv_{\mathrm{status}}i_2'\). Because the observation table is separable and \(i_1',i_2'\in I\), we
-get \(i_1'=i_2'\). Therefore, the representative of \(ia\) in \(I\) is unique, and hence \(\delta(\text{row}(i),a)\) exists and is unique.
+get \(i_1'=i_2'\). Therefore, the representative of \(ia\) in \(I\) is unique, and hence \(\delta(\operatorname{row}(i),a)\) exists and is unique.
 
-Since every state \(q\in Q\) has the form \(q=\text{row}(i)\) for some \(i\in I\), the above argument shows that for every \(q\in Q\)
+Since every state \(q\in Q\) has the form \(q=\operatorname{row}(i)\) for some \(i\in I\), the above argument shows that for every \(q\in Q\)
 and \(a\in\Sigma\), \(\delta(q,a)\) exists and is unique.
 
 Finally, we prove that the extended transition function \(\delta^*\) is
@@ -816,23 +828,23 @@ Thus, for all \(q\in Q\) and \(w\in\Sigma^*\), \(\delta^*(q,w)\) exists
 and is unique. \hfill $\square$
 
 \begin{lemma}[Monoid Consistency Check I]\label{lemma-monoid-consistency-check-i}
-Assume that the observation table \(OT=(I,P,S,T)\) is closed,
+Assume that the observation table \(\mathrm{OT}=(I,P,S,T)\) is closed,
 separable, and right consistent. Let \(\mathcal{M}\) be the
-hypothesis acceptor constructed from \(OT\), and let
+hypothesis acceptor constructed from \(\mathrm{OT}\), and let
 \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is,
 \(L(\mathcal{M})=U\). If \(\mathcal{M}\) is not isomorphic to the
 right Cayley graph of the syntactic monoid of \(U\), equipped with
 its initial and accepting states, then
 \[
-\exists t \in I \cdot \Sigma,\exists v \in I,\quad
+\exists t \in I \cdot \Sigma,\ \exists v \in I,\quad
 t \equiv_{\mathrm{status}} v \land t \not\sim_U v.
 \]
 \end{lemma}
 \noindent\textbf{Proof.} Assume that
 \[
-\forall t \in I\cdot\Sigma,\forall v\in I,\quad
-(t\equiv_{\mathrm{status}}v \Rightarrow t\sim_U v)
+\forall t \in I\cdot\Sigma,\ \forall v\in I,\quad
+(t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v)
 \tag{*}
 \]
 
@@ -847,20 +859,20 @@ so \(\epsilon\sim_U\rho(\epsilon)\). For the induction step, let \(x=ya\) with \
 that \(ia\equiv_{\mathrm{status}}u\). Since \(ia\in I\cdot\Sigma\) and \(u\in I\), by \((*)\) we get \(ia\sim_U u\). Therefore, \(ya \sim_U u=\rho(ya)\). Thus every word \(x\) is syntactically congruent to its representative
 \(\rho(x)\in I\).
 
-By Proposition~\ref{proposition-2.5-status-equivalence-and Representative}, \(x \equiv_{status} \rho(x)\). And because the observation table is separable, \(\rho(x)\) is the
+By Proposition~\ref{proposition-2.5-status-equivalence-and Representative}, \(x \equiv_{\mathrm{status}} \rho(x)\). And because the observation table is separable, \(\rho(x)\) is the
 unique representative for \(x\).
 
-Conversely, syntactically congruent words have identical observation rows by definition. 
+Conversely, syntactically congruent words have identical observation rows by definition.
 Hence, \(\equiv_{\mathrm{status}}\) coincides with \(\sim_U\).
 
 Therefore, if \((*)\) held:
 \[
-\forall x,y \in \Sigma^*. x \equiv_{status} y \Rightarrow x \sim_U y.
+\forall x,y \in \Sigma^*,\quad x \equiv_{\mathrm{status}} y \Longrightarrow x \sim_U y.
 \]
 
-In other words: \(\equiv_{\mathrm{status}}\text{is equal to}\sim_U\). Hence \((*)\) is false. Therefore,
+In other words: \(\equiv_{\mathrm{status}}\text{ is equal to }\sim_U\). Hence \((*)\) is false. Therefore,
 \[
-\exists t\in I\cdot\Sigma,\exists v\in I,\quad
+\exists t\in I\cdot\Sigma,\ \exists v\in I,\quad
 t\equiv_{\mathrm{status}}v\land t\not\sim_U v.
 \]
 
@@ -868,14 +880,14 @@ This proves the lemma. \hfill $\square$
 
 \begin{theorem}[Monoid Consistency Check II]\label{theorem-monoid-consistency-check-ii}
 Assume that the observation table
-\(OT=(I,P,S,T)\) is closed, separable, and right consistent.
+\(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
 Let \(\mathcal{M}\) be its hypothesis acceptor. Assume that
 \(\mathcal{M}\) passes the equivalence query, that is,
 \(L(\mathcal{M})=U\), but \(\mathcal{M}\) is not the right Cayley graph
 of the syntactic monoid of \(U\). According to Lemma~\ref{lemma-monoid-consistency-check-i}, let
-\(v \in I\) and \(t \in I\cdot \Sigma\) be such that \(t \equiv_{\mathrm{status}} v \quad\text{and}\quad t \not\sim_L v\). Then for this pair \((v,t)\),
+\(v \in I\) and \(t \in I\cdot \Sigma\) be such that \(t \equiv_{\mathrm{status}} v \quad\text{and}\quad t \not\sim_U v\). Then for this pair \((v,t)\),
 \[
-\exists i \in I,\exists s \in S,\quad
+\exists i \in I,\ \exists s \in S,\quad
 \chi(its) \neq \chi(ivs).
 \]
 
@@ -886,7 +898,7 @@ Equivalently,
 (i \cdot t \cdot s \notin U \land i \cdot v \cdot s \in U).
 \]
 \end{theorem}
-\noindent\textbf{Proof.} Since \(t\not\sim_L v\), there exist
+\noindent\textbf{Proof.} Since \(t\not\sim_U v\), there exist
 \(x,y\in\Sigma^*\) that distinguish \(t\) from \(v\).
 Without loss of generality, assume that \(xty\in U\) and
 \(xvy\notin U\).
@@ -922,38 +934,42 @@ We now combine the preceding results to establish the correctness of
 the algorithm's output. Specifically, we show that the conditions
 satisfied at termination ensure that the learned quotient is
 isomorphic to the syntactic monoid of the target language.
-Before we introduce the proof process of the correctness of the extension algorithm, 
+Before we introduce the proof process of the correctness of the extension algorithm,
 we need 2 prepared lemmas and show their proof processes.
 
 \begin{lemma}[Extension for each transition step from status equivalence to syntactic congruence]\label{Extension for each transition step from status equivalence to syntactic congruence}
-  Let \(OT=(I,P,S,T)\) be an observation table that
+  Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
-\(\mathcal M\) be the acceptor constructed from \(OT\). If
+\(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
 \(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), then the equivalence relation \(\equiv_{\mathrm{status}}\) coincides
-with the syntactic congruence \(\sim_L\):\[
-   \forall v\in I, t\in I \cdot\Sigma. t \equiv_{status} v \Rightarrow t \sim_L v
+with the syntactic congruence \(\sim_U\):\[
+\forall v\in I,\ \forall t\in I\cdot\Sigma,\quad
+t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v.
 \]
 \end{lemma}
-\textbf{Proof.} According to the definition of monoid consistency:
+\textbf{Proof.} According to the definition of monoid consistency,
+for every \(v\in I\) and \(t\in I\cdot\Sigma\),
 \[
-\forall v \in I, t\in I \cdot \Sigma. t \equiv_{status} v \Rightarrow (\forall i \in I,s \in S. \chi(its) = \chi(ivs))
+t\equiv_{\mathrm{status}}v \Longrightarrow
+\bigl(\forall i\in I,\ \forall s\in S,\quad \chi(its)=\chi(ivs)\bigr).
 \]
 
-Therefore \(\forall i \in I. it \equiv_S iv\). By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence}, \[
+Therefore \(\forall i\in I,\quad it\equiv_S iv\). By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence}, \[
 \forall w\in\Sigma^*,\quad
 itw\in U\Longleftrightarrow ivw\in U.
 \]
 
-Consider the set \(Prev\): \[
-   Prev = \{p\in \Sigma^*|\delta^*(q_0,p) = q_i\}
+Consider the set \(\operatorname{Prev}(i)\): \[
+\operatorname{Prev}(i)
+=\{p\in\Sigma^*\mid\delta^*(q_0,p)=q_i\},
 \]
 where \(i \in I\) and \(\delta^*(q_0,i) = q_i\). In other words, \(i\)
-is the representative of \(q_i\) and \(Prev\) is the set of all strings that lead to the same state \(q_i\) in the acceptor \(\mathcal M\).
+is the representative of \(q_i\) and \(\operatorname{Prev}(i)\) is the set of all strings that lead to the same state \(q_i\) in the acceptor \(\mathcal M\).
 
-By Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}, \(\forall p \in Prev. p \equiv_S i\). 
+By Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}, \(\forall p\in\operatorname{Prev}(i),\quad p\equiv_S i\).
 By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence},
 \[
-   \forall z \in \Sigma^*. pz\in U \Leftrightarrow iz\in U
+\forall z\in\Sigma^*,\quad pz\in U \Longleftrightarrow iz\in U.
 \]
 
 Let \(z_1 = tw\) and \(z_2 = vw\):
@@ -969,45 +985,46 @@ pvw\in U
 
 Because \(p\) and \(w\) are any strings:
 \[
-   \forall v\in I, t\in I \cdot\Sigma. t \equiv_{status} v \Rightarrow t \sim_L v
+\forall v\in I,\ \forall t\in I\cdot\Sigma,\quad
+t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v.
 \]
 \hfill $\square$
 
 \begin{lemma}[Extension for any strings from status equivalence to syntactic congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
-Let \(OT=(I,P,S,T)\) be an observation table that
+Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
-\(\mathcal M\) be the acceptor constructed from \(OT\). If
+\(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
 \(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), then:
 \[
-   \forall x \in \Sigma^*. x \sim_L \rho(x)
+\forall x\in\Sigma^*,\quad x\sim_U\rho(x),
 \]
-where \(\sim_L\) is the syntactic congruence and \(\rho:\Sigma^*\to I\) is the path representative function. 
+where \(\sim_U\) is the syntactic congruence and \(\rho:\Sigma^*\to I\) is the path representative function.
 \end{lemma}
-\textbf{Proof.} 
+\textbf{Proof.}
 We prove this claim by induction on \(x\).
 
 For the base case, if \(x=\epsilon\), then \(\rho(\epsilon)=\epsilon\),
-so \(\epsilon\sim_L\rho(\epsilon)\). 
-For the induction step, let \(x=ya\) with \(a\in\Sigma\). 
-By the induction hypothesis, \(y \sim_L \rho(y)\) where \(\rho(y) \in I\) because of the definition of \(\rho\). 
-Since syntactic congruence is a right congruence, we have \(ya\sim_L \rho(y)a\). 
-By the definition of \(\rho\), \(\rho(y)a\equiv_{status}\rho(ya)\in I\). By closedness, \(\rho(ya)\in I\). 
-By Lemma~\ref{Extension for each transition step from status equivalence to syntactic congruence}, \(\rho(y)a \sim_L \rho(ya)\). 
-Therefore, \(ya \sim_L \rho(ya)\), in other words, \(x \sim_L \rho(x)\). This completes the induction.
+so \(\epsilon\sim_U\rho(\epsilon)\).
+For the induction step, let \(x=ya\) with \(a\in\Sigma\).
+By the induction hypothesis, \(y \sim_U \rho(y)\) where \(\rho(y) \in I\) because of the definition of \(\rho\).
+Since syntactic congruence is a right congruence, we have \(ya\sim_U \rho(y)a\).
+By the definition of \(\rho\), \(\rho(y)a\equiv_{\mathrm{status}}\rho(ya)\in I\). By closedness, \(\rho(ya)\in I\).
+By Lemma~\ref{Extension for each transition step from status equivalence to syntactic congruence}, \(\rho(y)a \sim_U \rho(ya)\).
+Therefore, \(ya \sim_U \rho(ya)\), in other words, \(x \sim_U \rho(x)\). This completes the induction.
 
-Thus every word \(x\) is syntactically congruent to its representative \(\rho(x)\in I\). 
+Thus every word \(x\) is syntactically congruent to its representative \(\rho(x)\in I\).
 \hfill $\square$
 
-\begin{theorem}[Correctness of extended \(L^*\) algorithm for \texttt{Post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
-Let \(OT=(I,P,S,T)\) be an observation table that
+\begin{theorem}[Correctness of the extended \(L^*\) algorithm for the \texttt{Post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
+Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
-\(\mathcal M\) be the acceptor constructed from \(OT\). If
+\(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
 \(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), then the equivalence relation \(\equiv_{\mathrm{status}}\) coincides
-with the syntactic congruence \(\sim_L\): \[
+with the syntactic congruence \(\sim_U\): \[
 \forall x,y\in\Sigma^*,\quad
 x\equiv_{\mathrm{status}}y
 \Longleftrightarrow
-x\sim_L y.
+x\sim_U y.
 \]
 \end{theorem}
 Consequently, the quotient \(\Sigma^*/{\equiv_{\mathrm{status}}}\) is isomorphic to the syntactic monoid of \(U\), and \(\mathcal M\) is
@@ -1016,8 +1033,8 @@ isomorphic to its right Cayley graph.
 Under these assumptions, the implication
 \[
    \forall x,y\in\Sigma^*,\quad
-   x\sim_L y
-   \Rightarrow
+   x\sim_U y
+   \Longrightarrow
    x\equiv_{\mathrm{status}}y
 \]
 follows directly from the definition of observation rows. It therefore
@@ -1025,22 +1042,22 @@ suffices to prove the reverse implication:
 \[
 \forall x,y\in\Sigma^*,\quad
 x\equiv_{\mathrm{status}}y
-\Rightarrow
-x\sim_L y. \tag{**}
+\Longrightarrow
+x\sim_U y. \tag{**}
 \]
-\textbf{Proof.} 
-Let \(x,y\in\Sigma^*\) and assume that \(x\equiv_{\mathrm{status}}y\). 
-By Proposition~\ref{proposition-2.5-status-equivalence-and Representative}, 
-we have \(x\equiv_{\mathrm{status}}\rho(x)\) and \(y\equiv_{\mathrm{status}}\rho(y)\). 
-Therefore, by transitivity of \(\equiv_{\mathrm{status}}\), we get \(\rho(x)\equiv_{\mathrm{status}}\rho(y)\). 
-Since \(\rho(x),\rho(y)\in I\), by closedness and separability, \(\rho(x) = \rho(y)\). 
-By Lemma~\ref{Extension for any strings from status equivalence to syntactic congruence}, 
-we have \(x\sim_L\rho(x)\) and \(y\sim_L\rho(y)\). 
-By transitivity of \(\sim_L\), we obtain \(x\sim_L y\). This proves \((**)\).  \hfill $\square$
+\textbf{Proof.}
+Let \(x,y\in\Sigma^*\) and assume that \(x\equiv_{\mathrm{status}}y\).
+By Proposition~\ref{proposition-2.5-status-equivalence-and Representative},
+we have \(x\equiv_{\mathrm{status}}\rho(x)\) and \(y\equiv_{\mathrm{status}}\rho(y)\).
+Therefore, by transitivity of \(\equiv_{\mathrm{status}}\), we get \(\rho(x)\equiv_{\mathrm{status}}\rho(y)\).
+Since \(\rho(x),\rho(y)\in I\), by closedness and separability, \(\rho(x) = \rho(y)\).
+By Lemma~\ref{Extension for any strings from status equivalence to syntactic congruence},
+we have \(x\sim_U\rho(x)\) and \(y\sim_U\rho(y)\).
+By transitivity of \(\sim_U\), we obtain \(x\sim_U y\). This proves \((**)\).  \hfill $\square$
 
 \begin{theorem}[Correctness of the \texttt{Promote\_to\_P} Strategy]
 \label{theorem-correctness-of-the-promote_to_p-strategy}
-Let \(OT=(I,P,S,T)\) be a closed, separable, and right-consistent
+Let \(\mathrm{OT}=(I,P,S,T)\) be a closed, separable, and right-consistent
 observation table maintained by the \texttt{Promote\_to\_P} strategy,
 so that \(I\subseteq P\).
 Let \(\mathcal M\) be its hypothesis acceptor, and assume that
@@ -1056,7 +1073,7 @@ x\equiv_{\mathrm{status}}y
 The statement is similar to Theorem~\ref{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy} and we
 only need to show that \(\equiv_{\mathrm{status}}\) implies \(\sim_U\).
 
-First, we show that the table is monoid consistent because in this strategy, there is no monoid consistency check. 
+First, we show that the table is monoid consistent because in this strategy, there is no monoid consistency check.
 Let \(t\in I\Sigma\) and \(v\in I\) satisfy
 \(t\equiv_{\mathrm{status}}v\).
 Since \(I\subseteq P\), equality of their full rows gives
@@ -1079,190 +1096,367 @@ and accepting states.
 
 \section{Complexity Analysis}\label{complexity-analysis}
 
-We distinguish membership-query complexity, equivalence-query
-complexity, and internal computation. The analysis below treats the
-two strategies separately and counts repeated checks separately from
-distinct queries to the teacher.
+We analyze the \texttt{post\_check} and \texttt{Promote\_to\_P}
+strategies separately in terms of membership-query (MQ) and
+equivalence-query (EQ) counts, referring to actual calls to the teacher.
+Since internal computational costs depend on the implementation and
+are separate from the cost of query interaction between the learner
+and the black box, we do not analyze them here.
+We denote MQ counts by \(Q_{\mathrm{MQ}}\), with additional subscripts
+identifying the strategy or query source, and EQ counts by
+\(Q_{\mathrm{EQ}}\).
 
-\subsection{Cost Model and Common Operations}\label{cost-model-common-operations}
+\subsection{Query Counting and Parameters}\label{complexity-query-counting}
 
-Let \(k=|\Sigma|\ge1\), and let \(n,p,s\) denote the final sizes of
-\(I,P,S\) in a completed run. Since these sets only grow, their final
-sizes also bound their sizes at every earlier stage. Let \(M\) be the
-size of the target syntactic monoid and \(m\ge1\) an upper bound on
-counterexample length. Separability gives \(n\le M\): syntactically
-congruent words cannot have different observation rows.
+The learner maintains a global hash table throughout a run. Its keys
+are queried words \(w\), and its values are the membership results
+\(\chi(w)\). Whenever a membership result is needed, the learner first
+checks this cache. It calls the teacher only if the word is absent,
+and then stores the answer. The cache is initially empty and is shared
+by observation-table queries, counterexample processing, and monoid
+consistency checks. Thus each word is submitted as an MQ at most once,
+and the total MQ count equals the number of distinct words in the
+cache at termination.
 
-We analyze the variant that adds one distinguishing suffix for each
-counterexample or right-consistency refinement. Membership results are
-cached throughout the run. Internal bounds count table access, row
-comparison, hashing, and the operations described below; they exclude
-oracle execution time, string copying, and ordering the sets for
-presentation. Hash-table lookups have expected constant cost after
-computing a key's hash. Thus these are bounds in a row-operation model,
-rather than full bit-complexity bounds.
-
-\textbf{Observation Table and Membership Queries.}
-A full row has \(ps\) Boolean entries. Since
-\(|I\cup I\Sigma|\le(k+1)n\), the table has \(O(knps)\) cells.
-Filling all cells from scratch requires at most that many MQs.
-With a persistent cache, repeated table filling does not multiply the
-number of distinct MQs: every queried table word belongs to the final
-set \(P(I\cup I\Sigma)S\). Different cells may also represent the same
-word, so the cell count is an upper bound, not an exact query count.
-
-\textbf{Closedness and Separability.}
-Hash the rows in \(I\), then check the at most \(kn\) boundary rows
-against them. Computing a full-row hash takes \(O(ps)\), giving
-\(O(knps)\) expected work for a complete pass, including row
-construction if necessary. Adding only previously unseen rows
-preserves separability without a separate all-pairs check.
-
-\textbf{Right Consistency.}
-The direct implementation considers \(O(n^2)\) pairs of
-representatives. For each suffix-equivalent pair it checks \(k\)
-letters, comparing suffix rows of length \(s\). Hence a complete
-pass costs \(O(kn^2s)\), including the worst-case scan for a
-distinguishing suffix. These membership values already occur in the
-table at left context \(\epsilon\in P\); the check therefore adds
-no distinct MQs beyond table filling. A refinement adds \(as\) to
-\(S\), after which newly required table cells must be filled.
-
-\textbf{Hypothesis Construction.}
-Hash-based state and transition construction costs \(O(knps)\).
-If distinct full rows are also sorted, as in the implementation,
-sorting contributes \(O(nps\log(2+n))\). We write
-\(H=knps+nps\log(2+n)\) for this per-construction upper bound.
-
-\textbf{Counterexample Processing.}
-Binary-search refinement~\cite{rivest1993inference} uses
-\(O(\log(2+m))\) MQs per counterexample. Tracing the hypothesis along
-the counterexample takes \(O(m)\) internal transition steps.
-The subsequent table expansion is counted under table filling.
-If \(f_E\) and \(f_R\) count counterexamples and right-consistency
-refinements, respectively, the single-suffix variant satisfies
-\(s\le1+f_E+f_R\). In particular, growth of \(S\) cannot be charged
-only to failed equivalence queries.
-
-For cumulative internal bounds, let \(r_T\) count table-filling and
-closedness passes, \(r_R\) right-consistency passes, and \(r_H\)
-hypothesis constructions, including checks that succeed. Define
+For each strategy, let
 \[
-B=r_Tknps+r_Rkn^2s+r_HH+f_Em.
+n=|I|,\qquad p=|P|,\qquad s=|S|,\qquad k=|\Sigma|,
 \]
-Each strategy uses its own final sizes and pass counts in this
-expression. Let \(q_E\) denote its actual number of teacher EQ calls.
-We retain these counts explicitly instead of assuming an unproved
-bound on the number of learning rounds.
+where \(I,P,S\) are the final sets in a successfully completed run.
+By separability, \(n\) is also the number of states of the returned
+hypothesis DFA. Since the sets only grow, their final sizes bound all
+intermediate sizes. Each strategy has its own values of these
+parameters.
+Let \(m\ge1\) be an upper bound on the length of any counterexample
+returned during the run.
 
-\subsection{The \texttt{post\_check} Strategy}\label{complexity-post-check}
-
-\textbf{Table Size.}
-In the variant of Section~\ref{strategy-post-check}, each new left
-context is a representative from \(I\). Thus \(P\subseteq I\) and
-\(p\le n\le M\). The table bound remains \(O(knps)\), retaining
-the benefit of using only the left contexts actually needed.
-
-\textbf{Monoid Consistency Checks.}
-Closedness and separability determine one representative \(v\in I\)
-for each \(t\in I\Sigma\), so all \(n\) possible representatives
-need not be tried. There are at most \(kn\) boundary pairs, and each
-is tested with at most \(ns\) contexts \((i,s')\in I\times S\).
-Thus the probes cost \(O(kn^2s)\) per complete check. Forming or
-hashing the row-to-representative map adds at most \(O(knps)\).
-Tests with \(i\in P\) can be skipped, since their results already
-agree by full-row equality.
-
-Let \(q_M\) be the number of monoid checks, and \(f_P\) their number
-of failures. Each failure adds a previously absent word to \(P\),
-and the final successful check terminates the run. Consequently,
-\(q_M=f_P+1\le p\). The cumulative internal cost is bounded by
+We consider the variant in which Rivest--Schapire counterexample
+processing adds one distinguishing suffix to \(S\), and right-consistency
+refinement adds a suffix of the form \(az\), with \(a\in\Sigma\) and
+\(z\in S\). Counterexample processing does not add left contexts.
+Each added suffix distinguishes two words whose suffix rows were
+previously equal, so it strictly increases the number of distinct
+suffix rows over \(\Sigma^*\). This number cannot exceed \(n\): words
+reaching the same state of the final DFA have identical membership
+behavior after every suffix, since that DFA recognizes \(U\).
+Starting with \(S=\{\epsilon\}\), there are therefore at most
+\(n-1\) suffix additions, giving
 \[
-C_{\mathrm{post}}=O\bigl(B+q_M(knps+kn^2s)\bigr).
+s\le n.
 \]
+This counts distinctions made by suffix tests; additional state
+representatives are introduced through closedness refinement.
 
-\textbf{Distinct Membership Queries.}
-All monoid probes over the entire run have the form \(its'\) or
-\(ivs'\), with \(i,v\in I\), \(t\in I\Sigma\), and \(s'\in S\).
-Their union therefore contains at most \(O(kn^2s)\) words.
-Persistent caching makes this a whole-run MQ bound, without a
-factor of \(q_M\). Together with table filling and counterexamples,
+\subsection{MQs for the \texttt{post\_check} Strategy}\label{complexity-post-check}
+
+\textbf{Observation-Table Queries.}
+There are at most \((k+1)n\) rows in \(I\cup I\Sigma\), and each
+row has \(ps\) entries indexed by \(P\times S\). Every word queried
+for an observation-table entry belongs to the final set
+\(P(I\cup I\Sigma)S\). Global caching therefore gives the whole-run
+bound
 \[
-Q_{\mathrm{post}}=O\bigl(knps+kn^2s+f_E\log(2+m)\bigr).
+Q_{\mathrm{MQ},\mathrm{post},\mathrm{table}}
+\le |P(I\cup I\Sigma)S|
+\le (k+1)nps.
 \]
-Repeated probes still contribute to internal computation even when
-their MQ results are cached.
+Different entries may correspond to the same word, so the number of
+entries is an upper bound on the number of MQs. Repeated table access
+does not cause repeated teacher calls for a cached word.
 
-\textbf{Equivalence Queries.}
-The EQ cost is \(q_E\) teacher calls. A successful language EQ can
-be followed by further prefix refinements, so language confirmation
-and completion of monoid learning are separate events. If a
-confirmed language equivalence is reused, skipped checks do not
-count as new teacher calls. No bound \(q_E\le M\) is assumed here.
-
-\subsection{The \texttt{Promote\_to\_P} Strategy}\label{complexity-promote-to-p}
-
-\textbf{Table Size and Promotion.}
-Starting with \(I=P=\{\epsilon\}\) and adding every new representative
-to both sets gives \(P=I\), provided counterexample processing only
-refines \(S\). Hence \(p=n\), and the table has \(O(kn^2s)\) cells.
-If another counterexample handler inserts additional left contexts,
-only \(I\subseteq P\) is guaranteed; in that case the more general
-bound \(O(knps)\) must be retained.
-
-\textbf{Internal Checks.}
-For the single-suffix variant, closedness costs \(O(kn^2s)\) per
-pass, and right consistency also costs \(O(kn^2s)\) per pass.
-The hypothesis-construction bound is \(H\) with \(p=n\).
-Since all representatives are already left contexts, monoid
-consistency is included in full-row equality and \(q_M=0\).
-Thus the cumulative internal cost is
+Every left context added by this strategy is a representative from
+\(I\), so \(P\subseteq I\) and \(p\le n\). Together with \(s\le n\),
+this yields
 \[
-C_{\mathrm{promote}}=O(B),\qquad p=n.
+Q_{\mathrm{MQ},\mathrm{post},\mathrm{table}}\le(k+1)n^3=O(kn^3).
+\]
+This bound covers observation-table queries. Counterexample processing
+and explicit monoid consistency checks can also request membership
+results; only words not already in the global cache cause additional
+MQs.
+
+\subsection{MQs for the \texttt{Promote\_to\_P} Strategy}\label{complexity-promote-to-p}
+
+\textbf{Observation-Table Queries.}
+This strategy starts with \(I=P=\{\epsilon\}\) and adds each new
+representative to both sets. Hence \(P=I\) and \(p=n\). With at most
+\((k+1)n\) rows and \(ns\) entries per row, global caching gives
+\[
+Q_{\mathrm{MQ},\mathrm{promote},\mathrm{table}}\le(k+1)n^2s.
+\]
+Using \(s\le n\), we obtain
+\[
+Q_{\mathrm{MQ},\mathrm{promote},\mathrm{table}}\le(k+1)n^3=O(kn^3).
+\]
+Monoid consistency is included in the observation-table tests because
+\(I\subseteq P\), so no separate monoid-probe queries are required.
+Counterexample processing may introduce additional MQs for words not
+already cached. Thus the displayed bound concerns the table component
+of the MQ count, rather than the total MQ count.
+
+\subsection{Equivalence Queries under an Exact Teacher}\label{complexity-equivalence-queries}
+
+For the theoretical EQ bound, we assume an exact teacher: it answers
+yes precisely when the submitted hypothesis recognizes \(U\), and
+otherwise returns a valid counterexample. Each newly constructed
+hypothesis is submitted after closedness and right consistency have
+been restored, even if a previous hypothesis passed an EQ. We count
+actual teacher calls, independently of the teacher's computational
+cost. The following argument applies to both strategies.
+
+\textbf{State Growth after a Counterexample.}
+Rivest--Schapire processing finds a boundary word \(t\in I\Sigma\),
+its current representative \(v\in I\), and a suffix \(z\) such that
+\[
+\operatorname{row}(t)=\operatorname{row}(v),\qquad
+\chi(tz)\ne\chi(vz).
+\]
+Adding \(z\) to \(S\) separates their full rows, since
+\(\epsilon\in P\). The new row of \(t\) cannot equal the new row
+of any other old representative either: restricting to the old
+contexts would contradict separability. Restoring closedness
+therefore requires at least one new representative. Existing distinct
+rows remain distinct when contexts are added, so the next hypothesis
+has at least one more state.
+
+\textbf{Common EQ Bound.}
+If learning continues after a successful EQ, it is because
+\texttt{post\_check} has found a monoid consistency violation.
+The distinguishing left context added to \(P\) separates a boundary
+word from its old representative. As above, restoring closedness
+requires at least one new representative. Thus, whenever another EQ
+is submitted, either counterexample processing or monoid refinement
+has increased the number of states since the preceding EQ. The first
+hypothesis has at least one state, distinct rows never merge, and the
+final hypothesis has \(n\) states. Consequently, for either strategy, \(Q_{\mathrm{EQ}}\le n\).
+Let \(f_E\) denote the number of returned counterexamples. Since the
+final EQ succeeds,
+\[
+f_E\le Q_{\mathrm{EQ}}-1\le n-1.
 \]
 
-\textbf{Distinct Membership Queries and EQs.}
-No additional monoid-probe queries are needed. Therefore,
+Thus both strategies have the same upper bound of \(n\) EQs. This
+does not order their actual EQ counts. Promoting representatives to
+\(P\) can expose distinctions before an EQ and may avoid some
+counterexamples, while \texttt{post\_check} can introduce additional
+states through its monoid checks. Which strategy uses fewer EQs
+depends on the target language and the counterexamples returned by
+the teacher.
+
+\textbf{MQs for Counterexample Processing.}
+Both strategies use the same Rivest--Schapire binary-search
+procedure~\cite{rivest1993inference}. Consider one counterexample
+\(w\) of length \(\ell\), where \(1\le\ell\le m\). The search
+maintains two cut positions with different membership results.
+Initially their distance is \(\ell\). Each iteration accesses one
+midpoint membership result and reduces the interval length to at
+most its previous length divided by two, rounded up. Hence there
+are at most \(\lceil\log_2\ell\rceil\) midpoint accesses.
+
+The membership result at the final cut position concerns a state
+representative itself. It is already cached through the table entry
+with both contexts equal to \(\epsilon\). At the initial endpoint,
+the membership of \(w\) is inferred directly from the EQ result:
+because \(w\) is a valid counterexample, its membership is opposite
+to the hypothesis's acceptance result. Thus neither endpoint requires
+an additional MQ.
+Thus the number of new teacher calls for one counterexample satisfies
 \[
-Q_{\mathrm{promote}}=O\bigl(kn^2s+f_E\log(2+m)\bigr).
+\begin{aligned}
+Q_{\mathrm{MQ},\mathrm{RS}}^{(1)}(w)
+&\le \lceil\log_2\ell\rceil\\
+&\le \lceil\log_2 m\rceil.
+\end{aligned}
 \]
-The strategy stops at its first successful EQ, so
-\(q_E=f_E+1\). Right-consistency refinements take place before
-submitting a hypothesis and may change how many counterexamples
-are needed; they must still be included in the internal cost.
+Cached midpoint results can further reduce this count. The table
+expansion after adding the distinguishing suffix is counted under
+observation-table MQs.
 
-\subsection{Comparison of the Two Strategies}\label{complexity-strategy-comparison}
+Combining this per-counterexample bound with \(f_E\le n-1\), the
+whole-run contribution for either strategy is bounded by
+\[
+\begin{aligned}
+Q_{\mathrm{MQ},\mathrm{RS}}
+&\le f_E\lceil\log_2 m\rceil\\
+&\le(n-1)\lceil\log_2 m\rceil\\
+&=O(n\log m).
+\end{aligned}
+\]
 
-The main trade-off is between table width and explicit monoid
-checks. For the same \(n,s\), \texttt{post\_check} uses \(ps\) tests
-per row, while \texttt{Promote\_to\_P} uses \(ns\) in the
-single-suffix variant. Conversely, only \texttt{post\_check} pays
-for the repeated explicit monoid scans. Both strategies pay for
-right consistency; avoiding monoid checks does not remove this cost.
+\subsection{MQs for Monoid Consistency Checks}\label{complexity-monoid-mqs}
 
-Their cached MQ bounds can have the same worst-case order even
-when internal costs differ substantially. The values of \(p,s\),
-the number of repeated passes, and oracle costs determine which
-strategy is cheaper on a particular target. Fewer EQs for one
-strategy are not guaranteed solely by these upper bounds.
+Only \texttt{post\_check} performs explicit monoid consistency checks.
+We first bound the MQs for one check and then count distinct query
+words over the whole run.
 
-The inequality \(p+s\le M\) is not used: in the promotion strategy,
-\(p=M\) at successful completion while \(s\ge1\). Likewise, a
-bound on \(s\) or on the number of passes requires a separate
-progress argument that includes right-consistency refinements.
-The present bounds therefore keep these parameters explicit rather
-than assert an unsupported total complexity solely in \(M\).
+\textbf{One Check.}
+For each boundary word \(t\in I\Sigma\), closedness and separability
+determine a unique representative \(v\in I\) with the same full row.
+The check compares \(\chi(itz)\) and \(\chi(ivz)\) for left contexts
+\(i\in I\) and suffixes \(z\in S\). There are at most \(kn\)
+boundary words and at most \(ns\) context pairs per boundary word.
+Each comparison accesses two membership results, so the number of
+new MQs in one complete check is bounded by
+\[
+Q_{\mathrm{MQ},\mathrm{monoid}}^{(1)}\le2kn^2s.
+\]
+This is an upper bound: cached results require no teacher call, and
+contexts already in the current \(P\) need not be checked because
+full-row equality already guarantees agreement there. A check that
+stops at its first violation can also use fewer queries.
+
+\textbf{All Checks.}
+Regardless of how often the check is repeated, every probe word has
+the form \(itz\) or \(ivz\). Taking \(I,S\) to be their final sets,
+all such words belong to
+\[
+I(I\Sigma)S\ \cup\ IIS=I(I\cup I\Sigma)S.
+\]
+The global cache submits each word to the teacher at most once.
+Consequently, the cumulative MQ bound is
+\[
+\begin{aligned}
+Q_{\mathrm{MQ},\mathrm{monoid}}
+&\le |I(I\cup I\Sigma)S|\\
+&\le(k+1)n^2s\\
+&\le(k+1)n^3=O(kn^3).
+\end{aligned}
+\]
+The number of check executions therefore does not multiply this
+distinct-word bound. Repeated scans still incur internal computation,
+which is separate from the MQ count.
+
+\subsection{Conclusion: Worst-Case Complexity of Both Strategies under Ideal EQs}\label{complexity-query-conclusion}
+
+Under the exact-teacher assumption of
+Section~\ref{complexity-equivalence-queries}, we summarize the MQ and
+EQ bounds for each strategy. In each case, \(n\) is the number of
+states of its final hypothesis and \(m\) bounds its counterexample
+lengths.
+
+\textbf{The \texttt{post\_check} Strategy.}
+Since \(P\subseteq I\), the table-query words \(P(I\cup I\Sigma)S\)
+also belong to \(I(I\cup I\Sigma)S\). Thus table expansion and
+monoid checks together satisfy
+\[
+\begin{aligned}
+Q_{\mathrm{MQ},\mathrm{post},\mathrm{table+monoid}}
+&\le(k+1)n^2s\\
+&\le(k+1)n^3=O(kn^3).
+\end{aligned}
+\]
+Hence explicit monoid checks do not increase the order of the
+worst-case MQ upper bound beyond that of table expansion. They can
+request additional words outside the smaller current table, but
+their union with table queries is covered by the same bound obtained
+by using all representatives as left contexts.
+
+Adding the counterexample-processing contribution gives
+\[
+\begin{aligned}
+Q_{\mathrm{MQ},\mathrm{post}}
+&\le(k+1)n^3+(n-1)\lceil\log_2m\rceil\\
+&=O(kn^3+n\log m).
+\end{aligned}
+\]
+The EQ bound is \(Q_{\mathrm{EQ}}\le n\).
+
+\textbf{The \texttt{Promote\_to\_P} Strategy.}
+Since \(P=I\), table expansion already includes the contexts required
+for monoid consistency. There are no additional explicit monoid-probe
+queries. Combining the table bound from
+Section~\ref{complexity-promote-to-p} with the counterexample-processing
+bound gives
+\[
+\begin{aligned}
+Q_{\mathrm{MQ},\mathrm{promote}}
+&\le(k+1)n^3+(n-1)\lceil\log_2m\rceil\\
+&=O(kn^3+n\log m).
+\end{aligned}
+\]
+Its EQ count likewise satisfies \(Q_{\mathrm{EQ}}\le n\).
+Thus both strategies have the same worst-case upper-bound order for
+MQs and the same EQ upper bound. These bounds do not imply equal
+actual query counts or a fixed ordering between the strategies.
+
+\subsection{Simulating Equivalence Queries}\label{complexity-simulated-eq}
+
+Apart from internal computation, the remaining cost to be discussed
+is that of implementing equivalence queries. Since practical active
+learning settings can be complex, we introduce a simple model to
+estimate this cost roughly.
+
+To simulate an equivalence query using black-box membership queries,
+we first define an agreement test for a single word.
+For \(x\in\Sigma^*\), let \(\chi(x)\) be the black-box membership
+result defined in Section~\ref{algorithm-concepts}.
+For the current hypothesis acceptor \(\mathcal{M}\), define its
+characteristic function by
+\[
+\chi_{\mathcal{M}}(x)=
+\begin{cases}
+1, & x\in L(\mathcal{M}),\\
+0, & x\notin L(\mathcal{M}).
+\end{cases}
+\]
+Define \(\operatorname{EQ}:\{0,1\}^2\to\{0,1\}\) by
+\[
+\operatorname{EQ}\bigl(\chi(x),\chi_{\mathcal{M}}(x)\bigr)=
+\begin{cases}
+1, & \chi(x)=\chi_{\mathcal{M}}(x),\\
+0, & \chi(x)\ne\chi_{\mathcal{M}}(x).
+\end{cases}
+\]
+Thus a result of \(0\) identifies \(x\) as a counterexample, whereas
+a result of \(1\) indicates agreement on \(x\) alone.
+
+\textbf{A Sampling-Based EQ Procedure.}
+Fix a positive integer \(C\) as the sample budget for each EQ and a
+sampling distribution \(D\) over \(\Sigma^*\). For the current
+hypothesis \(\mathcal{M}\), draw words independently from \(D\) and
+evaluate \(\operatorname{EQ}(\chi(x),\chi_{\mathcal{M}}(x))\).
+The membership result \(\chi(x)\) is obtained from the global cache
+if available; otherwise, it is obtained through a new black-box MQ
+and stored in the cache. If a comparison returns \(0\), return
+\(x\) as a counterexample and stop the test. If all \(C\) comparisons
+return \(1\), report that the hypothesis passes this EQ test.
+Passing means that no counterexample was found among the sampled
+words; it does not establish exact language equivalence.
+
+\textbf{A Simple Cost Model.}
+Let \(B\) be the fixed basic cost of one EQ, and let
+\(\tau_{\mathrm{MQ}}\) be the assumed cost of one black-box MQ.
+Let \(\xi_j\) be a zero-mean random perturbation representing
+execution variability in the \(j\)-th EQ. If all \(C\) samples
+require new MQs and the full test is completed, its cost is modeled as
+\[
+T_{\mathrm{EQ}}^{(j)}=B+C\tau_{\mathrm{MQ}}+\xi_j.
+\]
+More generally, let \(Q_{\mathrm{MQ},\mathrm{EQ}}^{(j)}\) denote the
+actual number of new black-box MQs used by this test. With caching
+and early stopping, the model becomes
+\[
+\begin{aligned}
+T_{\mathrm{EQ}}^{(j)}
+&=B+Q_{\mathrm{MQ},\mathrm{EQ}}^{(j)}\tau_{\mathrm{MQ}}+\xi_j,\\
+0&\le Q_{\mathrm{MQ},\mathrm{EQ}}^{(j)}\le C.
+\end{aligned}
+\]
+Here \(C\) controls the sampling effort per EQ, while cache hits and
+early counterexamples can reduce the actual black-box query cost.
+Sampling, cache lookup, and hypothesis evaluation are represented
+only through the coarse basic-cost and variability terms; their
+internal computation is not analyzed separately.
 
 \section{Conclusion}\label{conclusion}
 
-This report presented an observation-table-based approach for learning
-the syntactic monoid of an unknown regular language. The main components
-of the method are the construction of a hypothesis acceptor, the use of
-membership and equivalence queries, and the additional monoid
-consistency check. When the observation table is closed, separable,
-right consistent, and monoid consistent, the resulting acceptor
-represents the syntactic monoid recognizing the unknown regular language
-\(U\).
+We presented two extensions of \(L^*\) for actively learning the
+syntactic monoid of an unknown regular language. Under exact
+equivalence queries, both strategies correctly recover a
+representation of the target syntactic monoid with query complexity
+polynomial in its size, the alphabet size, and the maximum
+counterexample length. We also proposed a sampling-based EQ procedure
+and a simple model for estimating its cost.
 
 
 \bibliographystyle{ieicetr}
