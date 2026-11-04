@@ -20,7 +20,7 @@
 \providecommand{\tightlist}{}
 \setlength{\emergencystretch}{1em}
 \tecrepyear{2026}
-\title{Extending the L-star Algorithm to Learn Syntactic Monoids}
+\title{Extending the $L^*$ Algorithm to Learn Syntactic Monoids}
 \subtitle{}
 % Use commas between authors; override only this manuscript's output macro.
 \makeatletter
@@ -53,25 +53,24 @@
 \begin{document}
 \begin{abstract}
 We extend Angluin's \(L^*\) algorithm to learn the syntactic monoid of an
-unknown regular language through membership and equivalence queries.
-An extended observation table with left and right contexts supports two
-strategies based on monoid consistency. We prove that their outputs
+unknown regular language through membership and equivalence queries. We design two
+strategies based on an extended observation table with left and right contexts. 
+We prove that their outputs
 represent the target syntactic monoid and analyze their query and
 computational costs.
 \end{abstract}
 \begin{keyword}
-syntactic monoid, regular language, active automata learning, observation table, monoid consistency
+syntactic monoid, regular language, active automata learning
 \end{keyword}
 \maketitle
 
 \section{Introduction}\label{introduction}
 
-Angluin's \(L^*\) algorithm actively learns the minimal deterministic
+Angluin's \(L^*\) algorithm is an active learning algorithm that learns the minimal deterministic
 finite automaton (DFA) of an unknown regular language through
-membership and equivalence queries~\cite{angluin87}. In this paper,
-\(U\subseteq\Sigma^*\) denotes the unknown regular language, and
-\(\Sigma\) denotes a fixed finite alphabet throughout. The learner
-does not require access to an internal representation of \(U\):
+membership and equivalence queries~\cite{angluin87}. In this paper, let \(\Sigma\) be a fixed finite alphabet, 
+and \(U\subseteq\Sigma^*\) be an unknown regular language. 
+The learner does not require access to an internal representation of \(U\):
 membership queries determine whether a word belongs to \(U\), while
 equivalence queries test a hypothesis and return a counterexample when
 it is incorrect.
@@ -87,7 +86,7 @@ Chen et al.\ introduce CEDAR, which learns and composes DFAs
 representing embodied skills and natural-language constraints to guide
 execution~\cite{chen2026cedar}.
 
-A minimal DFA captures the behavior of a language through its states
+The minimal DFA captures the behavior of a language through its states
 and transitions. The syntactic monoid additionally exposes the algebra
 of word concatenation, making algebraic properties of the language
 accessible. For example, a regular language is star-free exactly when
@@ -97,19 +96,20 @@ a nontrivial permutation on any subset of its
 states~\cite{mcnaughton1971counterfree}. This condition concerns
 transformations induced by arbitrary words and is not directly apparent
 from the DFA's transition graph; deciding permutation-freeness is
-PSPACE-complete. In contrast, aperiodicity
-gives a concise algebraic characterization through the stabilization
-of powers: there exists \(N\ge1\) such that \(x^N=x^{N+1}\) for every
-monoid element \(x\).
+PSPACE-complete with respect to the size of the DFA. In contrast, aperiodicity of monoid 
+which means \(N\ge1\) such that \(x^N=x^{N+1}\) for every
+monoid element \(x\), can be decided in polynomial time with respect to the size of the monoid.
+Therefore, the syntactic monoid can be useful in property decision for regular languages. 
+
+How can we obtain the syntactic monoid of an unknown regular language? 
 The syntactic monoid is isomorphic to the transition monoid of the
-minimal DFA. A conventional route to learning it is therefore to run
+minimal DFA. Thus, a conventional route to learning it is to run 
 the original \(L^*\) algorithm to obtain the minimal DFA and then
-compute the distinct transformations of its state set induced by words.
-Our aim is to construct a
+compute its transition monoid. 
+Our aim is to construct a 
 representation of the syntactic monoid within the active learning
-process itself. This approach may be useful in settings that require
-distinguishing words by their behavior under both left and right
-contexts.
+process itself. This route has some advantages in practical application. 
+For example in ~\cite{vazquezchanlatte2025lstarlm}, (). In this section, 
 
 These two representations arise from different equivalence relations
 on words. The states of the minimal DFA correspond to classes of the
@@ -147,17 +147,17 @@ is a finite sequence of letters from \(\Sigma\). The set of all such
 words is denoted by \(\Sigma^*\), and \(\epsilon\) denotes the empty
 word. The length of a word \(w\) is written as \(|w|\), with
 \(|\epsilon|=0\). The concatenation of words \(u\) and \(v\) is
-written as \(uv\) or \(u\cdot v\). A \emph{language} over \(\Sigma\) is a
-subset of \(\Sigma^*\). A language is \emph{regular} if it is accepted by a
-deterministic finite automaton, as defined below.
-
+written as \(uv\) or \(u\cdot v\). 
 A word \(u \in \Sigma^*\) is a \emph{prefix} of \(w \in \Sigma^*\) if \(w=uv\) for some
-\(v\in\Sigma^*\). A set \(X\subseteq\Sigma^*\) is \emph{prefix-closed}
-if every prefix of every word in \(X\) also belongs to \(X\).
+\(v\in\Sigma^*\). 
+% A set \(X\subseteq\Sigma^*\) is \emph{prefix-closed}
+% if every prefix of every word in \(X\) also belongs to \(X\).
 Similarly, \(v \in \Sigma^*\) is a \emph{suffix} of \(w\) if \(w=uv\) for some
-\(u\in\Sigma^*\), and \(X\) is \emph{suffix-closed} if it contains every
-suffix of each of its words. In particular, every nonempty
-prefix-closed or suffix-closed set contains \(\epsilon\).
+\(u\in\Sigma^*\). A \emph{language} over \(\Sigma\) is a
+subset of \(\Sigma^*\). 
+% and \(X\) is \emph{suffix-closed} if it contains every
+% suffix of each of its words. In particular, every nonempty
+% prefix-closed or suffix-closed set contains \(\epsilon\).
 
 A \emph{deterministic finite automaton (DFA)} is a tuple
 \(\mathcal{A}=(Q,\Sigma,\delta,q_0,F)\), where \(Q\) is a finite
@@ -173,7 +173,7 @@ function extends to \(\delta^*:Q\times\Sigma^*\to Q\) by
 \end{aligned}
 \]
 The language accepted by \(\mathcal{A}\) is defined as
-\(L(\mathcal{A})=\{w\in\Sigma^*\mid\delta^*(q_0,w)\in F\}\).
+\(L(\mathcal{A})=\{w\in\Sigma^*\mid\delta^*(q_0,w)\in F\}\). A language is \emph{regular} if it is accepted by a DFA. 
 
 A \emph{minimal DFA} for a regular language \(L\) is a DFA with the fewest states that accepts \(L\).
 Every regular language has a unique minimal DFA \(\mathcal{A}_L\), and \(\mathcal{A}_L\) can be constructed as follows:
@@ -193,12 +193,12 @@ This relation is a right congruence: if
 \(w\equiv_L^{\mathrm{MN}}w'\), then
 \(wx\equiv_L^{\mathrm{MN}}w'x\) for every \(x\in\Sigma^*\).
 Write \([w]_{\mathrm{MN}}\) for the class of \(w\).
-The Myhill--Nerode theorem \cite{myhill1957finite,nerode1958linear} states that \(L\) is regular if and only if
-this relation has finitely many equivalence classes. These classes
+The Myhill--Nerode theorem states that \(L\) is regular if and only if
+this relation has finitely many equivalence classes~\cite{myhill1957finite,nerode1958linear}. These classes
 form the state set of the minimal DFA: the initial state is
 \([\epsilon]_{\mathrm{MN}}\), the transition on a letter \(a\) maps
-\([w]_{\mathrm{MN}}\) to \([wa]_{\mathrm{MN}}\), and a class is
-accepting precisely when its words belong to \(L\).
+\([w]_{\mathrm{MN}}\) to \([wa]_{\mathrm{MN}}\), and a class \([w]_{\mathrm{MN}}\) is
+accepting if \([w]_{\mathrm{MN}}\subseteq L\).
 
 \subsection{Syntactic Monoids}\label{syntactic-monoid}
 
@@ -210,14 +210,14 @@ w\sim_L w^{\prime}
 \] for each \(w,w'\in\Sigma^*\).
 We call this relation the \emph{syntactic congruence} of \(L\).
 Thus syntactic congruence tests both left and right contexts.
-It is a two-sided congruence: \(w\sim_L w'\) implies
+This relation is a two-sided congruence: \(w\sim_L w'\) implies
 \(uwv\sim_L uw'v\) for all \(u,v\in\Sigma^*\).
 Taking the left context to be \(\epsilon\) shows that
 \(w\sim_L w'\) implies \(w\equiv_L^{\mathrm{MN}}w'\).
 
 Let \([w]_L\) denote the syntactic congruence class of \(w\).
 The quotient \(M(L)=\Sigma^*/{\sim_L}\), equipped with the
-multiplication \([u]_L\cdot[v]_L=[uv]_L\), is the \emph{syntactic monoid}
+multiplication \([u]_L\cdot[v]_L=[uv]_L\), forms the \emph{syntactic monoid}
 of \(L\). Multiplication is well-defined because \(\sim_L\) is a
 two-sided congruence, and its identity is
 \(1_L=[\epsilon]_L\). The canonical quotient morphism
@@ -257,30 +257,29 @@ First, we will introduce the concepts and properties used in the algorithm, and 
 \subsection{Queries and Extended Observation Table}\label{algorithm-concepts}
 \textbf{Membership Queries.} In a membership query, the learner selects a word \(w \in \Sigma^*\), and the teacher answers whether or not \(w \in U\).
 We denote the answer by the characteristic function
-\(\chi:\Sigma^*\to\{0,1\}\), defined by
-\[
-\chi(w)=
-\begin{cases}
-1, & \text{if } w\in U,\\
-0, & \text{if } w\notin U.
-\end{cases}
-\]
+\(\chi:\Sigma^*\to\{0,1\}\), defined by \(\chi(w)= 1\) if \(w\in U\) and \(\chi(w)=0\) if \(w\notin U\).
+% \[
+% \chi(w)=
+% \begin{cases}
+% 1, & \text{if } w\in U,\\
+% 0, & \text{if } w\notin U.
+% \end{cases}
+% \]
 Thus a membership query accepts \(w\) when \(\chi(w)=1\) and
 rejects it when \(\chi(w)=0\).
 
 \textbf{Equivalence Queries.} When the observation table \(\mathrm{OT}\) is closed, we can obtain a hypothesis
 automaton \(\mathcal{M}\) according to the definition of the acceptor.
-Then the teacher answers whether or not the unknown regular language
-\(U\) is the language accepted by \(\mathcal{M}\).
-
-If the teacher answers ``yes'' to the equivalence query, then the
-language \(L(\mathcal{M})\) accepted by the hypothesis automaton
-\(\mathcal{M}\) is the same as the unknown regular set \(U\).
-Consequently,
-\[
-\forall w \in \Sigma^*,\quad
-w \in L(\mathcal{M}) \Longleftrightarrow w \in U.
-\]
+Then the teacher answers whether \(U = L(\mathcal{M})\).
+.
+% If the teacher answers ``yes'' to the equivalence query, then the
+% language \(L(\mathcal{M})\) accepted by the hypothesis automaton
+% \(\mathcal{M}\) is the same as the unknown regular set \(U\).
+% Consequently,
+% \[
+% \forall w \in \Sigma^*,\quad
+% w \in L(\mathcal{M}) \Longleftrightarrow w \in U.
+% \]
 
 If the teacher answers ``no'' to the equivalence query, then the teacher provides a counterexample \(w \in \Sigma^*\) such that
 \[
@@ -300,10 +299,9 @@ the entry at row \(r\) and column \(e\) is \(T_0(re)\).
 To learn syntactic congruence classes, we extend the observation table
 to include left contexts as well. Our extended observation table
 is a 4-tuple
-\[
+\(
 \mathrm{OT} = (I,P,S,T),
-\]
-
+\)
 where  \(I,P,S \subseteq \Sigma^*\) are finite sets, and \(T\) is the function
 \[
 T : P\times( I \cup I \cdot \Sigma) \times S \to \{0,1\}
@@ -371,13 +369,13 @@ Our algorithm aims to ensure that the status equivalence is equal to the syntact
 
 \textbf{Partial Right Row and Suffix Equivalence.}
 We can consider only the suffix part
-\[
+\(
 \operatorname{row}_{S}(i) \in \{0,1\}^{S}
-\]
+\)
 defined by
-\[
+\(
 \operatorname{row}_{S}(i) = \bigl(T(\epsilon,i,s)\bigr)_{s\in S}
-\]
+\)
 for each \(i \in I\cup I\Sigma\).
 For arbitrary \(x\in\Sigma^*\), the corresponding extension is
 \(\operatorname{row}_S(x)=(\chi(xs))_{s\in S}\).
@@ -407,12 +405,10 @@ q_0 = \operatorname{row}(\epsilon) \in Q,
 \[
 F = \{\operatorname{row}(i) \in Q \mid T(\epsilon,i,\epsilon)=1\},
 \]
-
 and \(\delta:Q \times \Sigma\to Q\) is the transition function defined as follows:
 For \(q \in Q\) and \(a\in \Sigma\), if \(q = \operatorname{row}(i)\) for some
 \(i \in I\) and \( ia \equiv_{\mathrm{status}} i'\),\(i'\in I\), then \(\delta(q,a)=\operatorname{row}(i')\).
 This function is well-defined when the observation table satisfies some properties discussed later.
-
 For each \(i\in I\), we also write \(q_i:=\operatorname{row}(i)\).
 
 If the transition function \(\delta\) is well-defined, it can be extended to \(\delta^{*}:Q \times \Sigma^{*} \to Q\) by
@@ -503,7 +499,7 @@ then recheck closedness, right consistency, and monoid consistency.
 \subsection{The \texttt{post\_check} Strategy}\label{strategy-post-check}
 
 This strategy first obtains a hypothesis accepting \(U\), and then
-checks whether its representatives satisfy monoid consistency.
+checks whether the observation table satisfies monoid consistency.
 The set \(P\) is refined only when a distinguishing left context is
 needed by this check.
 
@@ -546,7 +542,7 @@ hypothesis acceptor representing the learned syntactic monoid.
 
 This strategy uses state representatives as left-context tests from
 the moment they are introduced. It maintains the invariant
-\(I\subseteq P\), so left contexts required for monoid consistency
+\(I = P\), so left contexts required for monoid consistency
 are already included in the observation table.
 
 \textbf{Phase 1: Initialization.}
@@ -561,7 +557,7 @@ I\leftarrow I\cup\{t\},\qquad P\leftarrow P\cup\{t\}.
 \]
 Fill the new rows and left-context entries using membership queries,
 and repeat until the table is closed. Every addition to \(I\) is
-accompanied by the same addition to \(P\), preserving \(I\subseteq P\).
+accompanied by the same addition to \(P\), preserving \(I = P\).
 Separability is preserved because each new representative has a
 previously unseen row.
 
@@ -579,10 +575,9 @@ counterexample is returned, refine \(S\) using the same method as in
 the \texttt{post\_check} strategy and return to Phase~2. If
 \(L(\mathcal{M})=U\), return the hypothesis without a separate monoid
 consistency check.
-
 Indeed, when \(t\equiv_{\mathrm{status}}v\), equality of their full
 rows already gives \(T(i,t,s)=T(i,v,s)\) for
-every \(i\in I\) and \(s\in S\), because \(I\subseteq P\).
+every \(i\in I\) and \(s\in S\), because \(I=P\).
 Thus the monoid consistency condition is satisfied by construction.
 Compared with \texttt{post\_check}, this strategy includes more left
 contexts in the table, but avoids the separate check after a successful
@@ -597,9 +592,9 @@ unknown target language \(U\).
 
 Let \(\rho:\Sigma^*\to I\) be the path representative function defined
 by the acceptor: \(\rho(\epsilon)=\epsilon\). If \(x=ya\) with \(a\in\Sigma\) and \(\rho(y)=i\in I\), then by
-closedness there exists \(u\in I\) such that \(ia\equiv_{\mathrm{status}}u\). We define \(\rho(ya)=u\). Intuitively, if we input the string \(x\) into the acceptor, it will get
+closedness there exists \(u\in I\) such that \(ia\equiv_{\mathrm{status}}u\). We define \(\rho(ya)=u\). Intuitively, if we input the word \(x\) into the acceptor, it will get
 into a state \(q = \delta^*(q_0,x)\). By the definition of the acceptor,
-there is a representative \(i \in I\) which fulfills
+there is a representative \(i \in I\) which satisfies
 \(q = \operatorname{row}(i)\). We say \(i\) is the representative of \(x\) in
 this acceptor. Equivalently,
 \(\delta^*(q_0,x)=q_{\rho(x)}\) for every \(x\in\Sigma^*\).
@@ -616,9 +611,9 @@ that \((I \cup \{i'\}, P,S)\) remains separable.
 \hfill $\square$
 
 \begin{proposition}[Right Consistency Refinement]\label{proposition-2.1-right-consistency-refinement}
-If \((I,P,S)\) is separable and closed but not
-right consistent, then we can refine \(S\) so that these two locally
-equivalent words become distinguishable.
+Assume that \((I,P,S)\) is separable and closed but not
+right consistent with some \(i,i' \in I\) and \(a\in \Sigma\) such that \(i\equiv_S i'\) and \(ia \not\equiv_S i'a\). 
+Then we can refine \(S\) so that \(i \not\equiv_S i'\).
 \end{proposition}
 \noindent\textbf{Proof.} According to the definition of right consistency, there
 exist \(i,i' \in I\) and \(a\in \Sigma\) such that \(i\equiv_S i' \quad\text{and}\quad ia \not\equiv_S i'a\). In other words, for such \(i\), \(i'\), and \(a\),
@@ -628,7 +623,8 @@ T(\epsilon,ia,s) \neq T(\epsilon,i'a,s).
 \]
 
 When we add \(as\) into \(S\), the observation table checks
-\(\operatorname{row}(i)\) and \(\operatorname{row}(i')\) using \(T(\epsilon,i,as) \neq T(\epsilon,i',as)\). Thus, \(i \not\equiv_S i'\). Therefore, refining \(S\) by adding \(as\) makes these two words
+\(\operatorname{row}(i)\) and \(\operatorname{row}(i')\) using \(T(\epsilon,i,as) \neq T(\epsilon,i',as)\). 
+Thus, \(i \not\equiv_S i'\). Therefore, refining \(S\) by adding \(as\) makes these two words
 distinguishable. \hfill $\square$
 
 \begin{proposition}[Equivalence Queries and Suffix-Equivalent Representatives]\label{proposition-2.2-status-equivalence-implies-suffix-equivalence}
@@ -638,15 +634,12 @@ Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
 and let \(\rho:\Sigma^*\to I\) be its path representative function.
 Assume that \(\mathcal{M}\) passes the equivalence query, that is, \(L(\mathcal{M})=U\). Then for every \(w\in\Sigma^*\), \(w\equiv_S\rho(w)\).
 \end{proposition}
-\noindent\textbf{Proof.} Since \(I\) is prefix-closed, following the prefixes of
-any \(i\in I\) in the acceptor gives
-\(\delta^*(q_0,i)=\operatorname{row}(i)\). By the definition of the path
-representative function,
+\noindent\textbf{Proof.} Since the definiton of \(\operatorname{row}\), 
+\(\delta^*(q_0,i)=\operatorname{row}(i)\). By the definition \(\rho\),
 \[
 \delta^*(q_0,w)=\operatorname{row}(\rho(w))
 =\delta^*(q_0,\rho(w)).
 \]
-
 Therefore, for every \(s\in S\),
 \[
 \begin{aligned}
@@ -656,16 +649,14 @@ Therefore, for every \(s\in S\),
 &=\delta^*(q_0,\rho(w)s).
 \end{aligned}
 \]
-
 Thus \(ws\) and \(\rho(w)s\) are either both accepted or both rejected
 by \(\mathcal{M}\). Since \(L(\mathcal{M})=U\), we obtain
 \[
 \forall s\in S,\quad ws\in U\Longleftrightarrow\rho(w)s\in U.
 \]
-
 By the definition of suffix equivalence, this means
 \(w\equiv_S\rho(w)\).
-\par\nopagebreak\noindent\hfill $\square$
+\hfill $\square$
 
 \begin{proposition}[Right Consistency and Myhill-Nerode Congruence]\label{proposition-2.3-right-consistency-and-myhill-nerode-congruence}
 Assume that the observation table
@@ -683,10 +674,9 @@ u\equiv_Sv
 \(i\equiv_S i'\). We prove by induction on \(|y|\) that
 \(\rho(iy)\equiv_S\rho(i'y)\) for every \(y\in\Sigma^*\).
 
-\noindent\textbf{Base case.} If \(y=\epsilon\), then
-\(\rho(i)=i\) and \(\rho(i')=i'\), because \(I\) is prefix-closed
-and the table is separable. Thus the claim follows from
-\(i\equiv_S i'\).
+\noindent\textbf{Base case.} If \(y=\epsilon\), 
+\(\rho(i)=i\) and \(\rho(i')=i'\). Because of the assumption, 
+\(i\equiv_S i'\) which implies \(\rho(i)\equiv_S\rho(i')\).
 
 \noindent\textbf{Induction step.} Assume that
 \(\rho(iy)\equiv_S\rho(i'y)\), and let \(a\in\Sigma\).
@@ -709,13 +699,13 @@ This completes the induction.
 
 Since \(\epsilon\in S\), the representatives \(\rho(iy)\) and
 \(\rho(i'y)\) have the same accepting status. By the definition of
-the path representative function, these representatives correspond
+the \(\rho\), these representatives correspond
 to the states reached after reading \(iy\) and \(i'y\), respectively.
 Hence \(iy\in L(\mathcal M)\) if and only if
 \(i'y\in L(\mathcal M)\). As \(L(\mathcal M)=U\), we obtain
 \(iy\in U\) if and only if \(i'y\in U\).
 
-For any strings \(u,v\in\Sigma^*\), assume that \(u\equiv_S v\).
+For any words \(u,v\in\Sigma^*\), assume that \(u\equiv_S v\).
 Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}
 gives \(u\equiv_S\rho(u)\) and \(v\equiv_S\rho(v)\); hence
 \(\rho(u)\equiv_S\rho(v)\). Since these representatives belong to
@@ -726,11 +716,11 @@ representative function,
 \(\delta^*(q_0,u)=\delta^*(q_0,\rho(u))\) and
 \(\delta^*(q_0,v)=\delta^*(q_0,\rho(v))\). Thus \(u\) and
 \(\rho(u)\) have the same accepting behavior after every suffix,
-as do \(v\) and \(\rho(v)\). Since \(L(\mathcal M)=U\), for every
-\(y\in\Sigma^*\) we obtain
+as do \(v\) and \(\rho(v)\). Since \(L(\mathcal M)=U\), we obtain
 \[
-uy\in U \Longleftrightarrow \rho(u)y\in U \Longleftrightarrow \rho(v)y\in U \Longleftrightarrow vy\in U.
+uy\in U \Longleftrightarrow \rho(u)y\in U \Longleftrightarrow \rho(v)y\in U \Longleftrightarrow vy\in U
 \]
+for every \(y\in\Sigma^*\). 
 \hfill $\square$
 
 \begin{proposition}[Right Compatibility of Status Equivalence]\label{proposition-2.4-stable-right-transition-of-status-equivalence-i-dont-have-any-idea-about-the-name-of-this-title}
@@ -750,7 +740,7 @@ ua\equiv_{\mathrm{status}}va.
 \hfill $\square$
 
 
-\begin{proposition}[Status equivalence and Representative]\label{proposition-2.5-status-equivalence-and Representative}
+\begin{proposition}[Status Equivalence and Representative]\label{proposition-2.5-status-equivalence-and Representative}
 Assume that the observation table
 \(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
 Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
@@ -766,7 +756,7 @@ compatible, we have \(ya\equiv_{\mathrm{status}}ia\). By the definition of \(\rh
 \hfill $\square$
 % Proposition~\ref{proposition-2.5-status-equivalence-and Representative} shows that the status equivalence of any string \(x\) is the same as that of its representative \(\rho(x)\) in \(I\). This means that the representative function \(\rho\) preserves the status equivalence classes, and thus the rows of \(x\) and \(\rho(x)\) are identical.
 
-\begin{proposition}[Status Equivalence and transition function]\label{proposition-2.6-status-equivalence-and-transition-function}
+\begin{proposition}[Status Equivalence and Transition Function]\label{proposition-2.6-status-equivalence-and-transition-function}
 Assume that the observation table
 \(\mathrm{OT}=(I,P,S,T)\) is closed, separable, and right consistent.
 Let \(\mathcal{M}\) be the hypothesis acceptor constructed from \(\mathrm{OT}\),
@@ -795,9 +785,8 @@ x\equiv_{\mathrm{status}}y
 This proves the proposition. \hfill $\square$
 
 \begin{proposition}[Well-definedness of the Hypothesis Automaton]\label{proposition-3-well-definedness-of-the-hypothesis-automaton}
-If the observation table \(\mathrm{OT}=(I,P,S,T)\) is closed and separable, then the transition function \(\delta:Q\times\Sigma\to Q\) of the hypothesis automaton \(\mathcal{M}\) is well-defined.
-Consequently, for all \(q\in Q\) and \(w\in\Sigma^*\), the extended
-transition \(\delta^*(q,w)\) exists and is unique.
+If the observation table \(\mathrm{OT}=(I,P,S,T)\) is closed and separable, 
+then the transition function \(\delta:Q\times\Sigma\to Q\) of the hypothesis automaton \(\mathcal{M}\) is well-defined.
 \end{proposition}
 \noindent\textbf{Proof.} First, we prove existence. By the definition of the
 acceptor, for \(i\in I\) and \(a\in\Sigma\), if there exists \(i'\in I\)
@@ -815,17 +804,7 @@ get \(i_1'=i_2'\). Therefore, the representative of \(ia\) in \(I\) is unique, a
 
 Since every state \(q\in Q\) has the form \(q=\operatorname{row}(i)\) for some \(i\in I\), the above argument shows that for every \(q\in Q\)
 and \(a\in\Sigma\), \(\delta(q,a)\) exists and is unique.
-
-Finally, we prove that the extended transition function \(\delta^*\) is
-also well-defined. We use induction on \(|w|\).
-
-If \(|w|=0\), then \(w=\epsilon\), and by definition, \(\delta^*(q,\epsilon)=q\), which exists and is unique.
-
-Assume that for every word \(w'\in\Sigma^*\) with \(|w'|\le k\),
-\(\delta^*(q,w')\) exists and is unique. Let \(w=w'a, \qquad a\in\Sigma\). By the induction hypothesis, \(\delta^*(q,w')\) exists and is unique. Since \(\delta\) is well-defined, \(\delta(\delta^*(q,w'),a)\) also exists and is unique. Therefore, \(\delta^*(q,w)=\delta(\delta^*(q,w'),a)\) exists and is unique.
-
-Thus, for all \(q\in Q\) and \(w\in\Sigma^*\), \(\delta^*(q,w)\) exists
-and is unique. \hfill $\square$
+\hfill $\square$
 
 \begin{lemma}[Monoid Consistency Check I]\label{lemma-monoid-consistency-check-i}
 Assume that the observation table \(\mathrm{OT}=(I,P,S,T)\) is closed,
@@ -900,8 +879,8 @@ Equivalently,
 \end{theorem}
 \noindent\textbf{Proof.} Since \(t\not\sim_U v\), there exist
 \(x,y\in\Sigma^*\) that distinguish \(t\) from \(v\).
-Without loss of generality, assume that \(xty\in U\) and
-\(xvy\notin U\).
+Assume that \(xty\in U\) and
+\(xvy\notin U\) and the other case \(xvy\in U\) and \(xty\notin U\) is similar.
 
 Let \(i=\rho(x)\in I\) be the path representative of \(x\).
 By Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}, \(x\equiv_S i\). Applying Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence} gives
@@ -941,8 +920,8 @@ we need 2 prepared lemmas and show their proof processes.
   Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
-\(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), then the equivalence relation \(\equiv_{\mathrm{status}}\) coincides
-with the syntactic congruence \(\sim_U\):\[
+\(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), we have
+\[
 \forall v\in I,\ \forall t\in I\cdot\Sigma,\quad
 t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v.
 \]
@@ -953,25 +932,16 @@ for every \(v\in I\) and \(t\in I\cdot\Sigma\),
 t\equiv_{\mathrm{status}}v \Longrightarrow
 \bigl(\forall i\in I,\ \forall s\in S,\quad \chi(its)=\chi(ivs)\bigr).
 \]
-
 Therefore \(\forall i\in I,\quad it\equiv_S iv\). By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence}, \[
 \forall w\in\Sigma^*,\quad
 itw\in U\Longleftrightarrow ivw\in U.
 \]
-
-Consider the set \(\operatorname{Prev}(i)\): \[
-\operatorname{Prev}(i)
-=\{p\in\Sigma^*\mid\delta^*(q_0,p)=q_i\},
-\]
-where \(i \in I\) and \(\delta^*(q_0,i) = q_i\). In other words, \(i\)
-is the representative of \(q_i\) and \(\operatorname{Prev}(i)\) is the set of all strings that lead to the same state \(q_i\) in the acceptor \(\mathcal M\).
-
-By Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}, \(\forall p\in\operatorname{Prev}(i),\quad p\equiv_S i\).
+For each \(p \in \Sigma^*\), let \(i \in I\) be the representative of \(q_i = \delta^*(q_0,p)\). 
+By Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}, we have \(p\equiv_S i\).
 By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence},
 \[
 \forall z\in\Sigma^*,\quad pz\in U \Longleftrightarrow iz\in U.
 \]
-
 Let \(z_1 = tw\) and \(z_2 = vw\):
 \[
 ptw\in U
@@ -982,23 +952,21 @@ ivw\in U
 \Longleftrightarrow
 pvw\in U
 \]
-
-Because \(p\) and \(w\) are any strings:
+Therefore, we have that
 \[
 \forall v\in I,\ \forall t\in I\cdot\Sigma,\quad
-t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v.
-\]
+t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v
+\] holds. 
 \hfill $\square$
 
-\begin{lemma}[Extension for any strings from status equivalence to syntactic congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
+\begin{lemma}[Extension for any Words from status equivalence to syntactic congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
 Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
-\(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), then:
-\[
-\forall x\in\Sigma^*,\quad x\sim_U\rho(x),
-\]
-where \(\sim_U\) is the syntactic congruence and \(\rho:\Sigma^*\to I\) is the path representative function.
+\(\mathcal M\) passes the equivalence query, i.e., \(L(\mathcal M)=U\), then
+\(
+x\sim_U\rho(x)
+\) holds for each \(x\in\Sigma^*\).
 \end{lemma}
 \textbf{Proof.}
 We prove this claim by induction on \(x\).
@@ -1011,8 +979,6 @@ Since syntactic congruence is a right congruence, we have \(ya\sim_U \rho(y)a\).
 By the definition of \(\rho\), \(\rho(y)a\equiv_{\mathrm{status}}\rho(ya)\in I\). By closedness, \(\rho(ya)\in I\).
 By Lemma~\ref{Extension for each transition step from status equivalence to syntactic congruence}, \(\rho(y)a \sim_U \rho(ya)\).
 Therefore, \(ya \sim_U \rho(ya)\), in other words, \(x \sim_U \rho(x)\). This completes the induction.
-
-Thus every word \(x\) is syntactically congruent to its representative \(\rho(x)\in I\).
 \hfill $\square$
 
 \begin{theorem}[Correctness of the extended \(L^*\) algorithm for the \texttt{Post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
@@ -1030,7 +996,8 @@ x\sim_U y.
 Consequently, the quotient \(\Sigma^*/{\equiv_{\mathrm{status}}}\) is isomorphic to the syntactic monoid of \(U\), and \(\mathcal M\) is
 isomorphic to its right Cayley graph.
 
-Under these assumptions, the implication
+\noindent\textbf{Proof.}
+The implication
 \[
    \forall x,y\in\Sigma^*,\quad
    x\sim_U y
@@ -1045,7 +1012,6 @@ x\equiv_{\mathrm{status}}y
 \Longrightarrow
 x\sim_U y. \tag{**}
 \]
-\textbf{Proof.}
 Let \(x,y\in\Sigma^*\) and assume that \(x\equiv_{\mathrm{status}}y\).
 By Proposition~\ref{proposition-2.5-status-equivalence-and Representative},
 we have \(x\equiv_{\mathrm{status}}\rho(x)\) and \(y\equiv_{\mathrm{status}}\rho(y)\).
@@ -1073,10 +1039,10 @@ x\equiv_{\mathrm{status}}y
 The statement is similar to Theorem~\ref{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy} and we
 only need to show that \(\equiv_{\mathrm{status}}\) implies \(\sim_U\).
 
-First, we show that the table is monoid consistent because in this strategy, there is no monoid consistency check.
+First, we show that the table is monoid consistent without monoid consistency check.
 Let \(t\in I\Sigma\) and \(v\in I\) satisfy
 \(t\equiv_{\mathrm{status}}v\).
-Since \(I\subseteq P\), equality of their full rows gives
+Since \(I = P\), equality of their full rows gives
 \(T(i,t,s)=T(i,v,s)\) for every \(i\in I\) and \(s\in S\).
 By the definition of \(T\), this means
 \(\chi(its)=\chi(ivs)\).
