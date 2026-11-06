@@ -916,7 +916,7 @@ isomorphic to the syntactic monoid of the target language.
 Before we introduce the proof process of the correctness of the extension algorithm,
 we need 2 prepared lemmas and show their proof processes.
 
-\begin{lemma}[Extension for each transition step from status equivalence to syntactic congruence]\label{Extension for each transition step from status equivalence to syntactic congruence}
+\begin{lemma}[Extension for each Transition Step from Status Equivalence to Syntactic Congruence]\label{Extension for each transition step from status equivalence to syntactic congruence}
   Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
@@ -959,7 +959,7 @@ t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v
 \] holds. 
 \hfill $\square$
 
-\begin{lemma}[Extension for any Words from status equivalence to syntactic congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
+\begin{lemma}[Extension for any Words from Status Equivalence to Syntactic Congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
 Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
@@ -971,9 +971,10 @@ x\sim_U\rho(x)
 \textbf{Proof.}
 We prove this claim by induction on \(x\).
 
-For the base case, if \(x=\epsilon\), then \(\rho(\epsilon)=\epsilon\),
+\noindent\textbf{Base.} If \(x=\epsilon\), then \(\rho(\epsilon)=\epsilon\),
 so \(\epsilon\sim_U\rho(\epsilon)\).
-For the induction step, let \(x=ya\) with \(a\in\Sigma\).
+
+\noindent\textbf{Induction step.} Let \(x=ya\) with \(a\in\Sigma\).
 By the induction hypothesis, \(y \sim_U \rho(y)\) where \(\rho(y) \in I\) because of the definition of \(\rho\).
 Since syntactic congruence is a right congruence, we have \(ya\sim_U \rho(y)a\).
 By the definition of \(\rho\), \(\rho(y)a\equiv_{\mathrm{status}}\rho(ya)\in I\). By closedness, \(\rho(ya)\in I\).
@@ -981,7 +982,7 @@ By Lemma~\ref{Extension for each transition step from status equivalence to synt
 Therefore, \(ya \sim_U \rho(ya)\), in other words, \(x \sim_U \rho(x)\). This completes the induction.
 \hfill $\square$
 
-\begin{theorem}[Correctness of the extended \(L^*\) algorithm for the \texttt{Post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
+\begin{theorem}[Correctness of the Extended \(L^*\) Algorithm for the \texttt{Post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
 Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
@@ -1090,8 +1091,7 @@ n=|I|,\qquad p=|P|,\qquad s=|S|,\qquad k=|\Sigma|,
 \]
 where \(I,P,S\) are the final sets in a successfully completed run.
 By separability, \(n\) is also the number of states of the returned
-hypothesis DFA. Since the sets only grow, their final sizes bound all
-intermediate sizes. Each strategy has its own values of these
+hypothesis DFA. Each strategy has its own values of these
 parameters.
 Let \(m\ge1\) be an upper bound on the length of any counterexample
 returned during the run.
@@ -1099,20 +1099,24 @@ returned during the run.
 We consider the variant in which Rivest--Schapire counterexample
 processing adds one distinguishing suffix to \(S\), and right-consistency
 refinement adds a suffix of the form \(az\), with \(a\in\Sigma\) and
-\(z\in S\). Counterexample processing does not add left contexts.
+\(z\in S\). 
+Counterexample processing does not add left contexts.
 Each added suffix distinguishes two words whose suffix rows were
 previously equal, so it strictly increases the number of distinct
-suffix rows over \(\Sigma^*\). This number cannot exceed \(n\): words
+suffix rows over \(\Sigma^*\). 
+This number cannot exceed \(n\): words
 reaching the same state of the final DFA have identical membership
 behavior after every suffix, since that DFA recognizes \(U\).
 Starting with \(S=\{\epsilon\}\), there are therefore at most
 \(n-1\) suffix additions, giving
-\[
+\(
 s\le n.
-\]
-This counts distinctions made by suffix tests; additional state
-representatives are introduced through closedness refinement.
+\)
 
+Moreover, every left context added to \(P\) by \texttt{post\_check}
+is selected from \(I\), while \texttt{Promote\_to\_P} maintains
+\(P=I\). Since \(I\) only grows, both strategies preserve
+\(P\subseteq I\), giving \(p\le n\).
 \subsection{MQs for the \texttt{post\_check} Strategy}\label{complexity-post-check}
 
 \textbf{Observation-Table Queries.}
