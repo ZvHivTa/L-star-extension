@@ -1,7 +1,11 @@
 # IEICE 论文 LaTeX 项目
 
-本目录是论文的主工作目录，与同一仓库内的 Python 实验项目独立编译。
+本目录维护 IEICE 会议删减版，与同一仓库内的 Python 实验项目独立编译。
 论文标题为 *Extending the L-star Algorithm to Learn Syntactic Monoids*。
+本版本省略原第 5 节复杂度分析（含模拟 EQ 及其成本模型），
+新的第 5 节比较两种策略并讨论目标语言的开放问题，结论为第 6 节。
+保留全部内容的硕士论文项目位于 [`../master_thesis/`](../master_thesis/README.md)，
+两个项目分别维护源码、参考文献和编译配置。
 
 ## 在另一台电脑上使用
 
@@ -14,7 +18,7 @@ cd L-star-extension/papers/ieice
 ```
 
 已有仓库时，在仓库中运行 `git pull --ff-only`，然后打开本目录。
-请将论文修订提交到此目录，避免维护多个独立副本。
+会议版修订保存在本目录；需要两版共用的修订应分别同步到硕士论文项目。
 
 ## 独立编辑与编译
 

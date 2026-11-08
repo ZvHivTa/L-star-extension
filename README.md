@@ -109,12 +109,22 @@ Important files:
 - `experiment_results/`: dated reports, raw benchmark JSON, and generated figures.
 - `tests/`: focused regression tests for learner behavior and experiment statistics.
 - `docs/`: project notes and work logs.
-- `papers/ieice/`: self-contained IEICE LaTeX manuscript; open this folder
-  independently for paper editing. See its [build and setup instructions](papers/ieice/README.md).
+- `papers/ieice/`: self-contained shortened IEICE conference manuscript, with
+  complexity analysis omitted. See its [build instructions](papers/ieice/README.md).
+- `papers/master_thesis/`: self-contained full master's thesis draft, including
+  complexity analysis and simulated EQs, currently using the IEICE layout.
+  See its [build instructions](papers/master_thesis/README.md).
 
-To compile the manuscript from the repository root, install a TeX distribution
-with latexmk and run `latexmk -cd -pdf -outdir=build papers/ieice/ieice_draft.tex`.
-Paper build products stay in `papers/ieice/build/` and are excluded from Git.
+Install a TeX distribution with latexmk, then compile either manuscript from the
+repository root:
+
+```sh
+latexmk -cd -pdf -outdir=build papers/ieice/ieice_draft.tex
+latexmk -cd -pdf -outdir=build papers/master_thesis/thesis_draft.tex
+```
+
+Each project can also be opened independently for editing. Build products stay
+in that project's own `build/` directory and are excluded from Git.
 
 ## Requirements
 

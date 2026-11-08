@@ -2,9 +2,12 @@
 
 ## Scope and independence
 
-- This directory is the primary manuscript project. Keep it self-contained;
+- This directory contains the shortened IEICE conference manuscript. Keep it self-contained;
   it must compile after a fresh clone without Python or experimental outputs.
 - The only manuscript entry point is `ieice_draft.tex` in this directory.
+- The full master's thesis draft is maintained separately in `papers/master_thesis/`.
+  Complexity analysis and the simulated-EQ cost model are retained there and
+  omitted from this conference version.
 - Compile here with `latexmk -pdf ieice_draft.tex`, or from the repository root
   with `latexmk -cd -pdf -outdir=build papers/ieice/ieice_draft.tex`.
 - Put every generated file in this directory's `build/`. Do not commit build

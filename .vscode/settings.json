@@ -25,7 +25,8 @@
   ],
   "latex-workshop.latex.recipe.default": "first",
   "latex-workshop.latex.search.rootFiles.include": [
-    "papers/ieice/ieice_draft.tex"
+    "papers/ieice/ieice_draft.tex",
+    "papers/master_thesis/thesis_draft.tex"
   ],
   "latex-workshop.latex.search.rootFiles.exclude": [
     "**/ieice-tecrep_v1.1/**",
