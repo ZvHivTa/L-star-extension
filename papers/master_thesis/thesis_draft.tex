@@ -56,8 +56,7 @@ We extend Angluin's \(L^*\) algorithm to learn the syntactic monoid of an
 unknown regular language through membership and equivalence queries. We design two
 strategies based on an extended observation table with left and right contexts. 
 We prove that their outputs
-represent the target syntactic monoid and analyze their query and
-computational costs.
+represent the target syntactic monoid.
 \end{abstract}
 \begin{keyword}
 syntactic monoid, regular language, active automata learning
@@ -89,16 +88,16 @@ execution~\cite{chen2026cedar}.
 The minimal DFA captures the behavior of a language through its states
 and transitions. The syntactic monoid additionally exposes the algebra
 of word concatenation, making algebraic properties of the language
-accessible. For example, a regular language is star-free exactly when
-its syntactic monoid is aperiodic~\cite{SCHUTZENBERGER1965190}.
-Equivalently, its minimal DFA is permutation-free: no word induces
+accessible. For example, a regular language is \emph{star-free} exactly when
+its syntactic monoid is \emph{aperiodic} which means there exists \(N\ge1\) such that \(x^N=x^{N+1}\) for every
+element \(x\) ~\cite{SCHUTZENBERGER1965190}.
+Equivalently, its minimal DFA is \emph{permutation-free}: no word induces
 a nontrivial permutation on any subset of its
 states~\cite{mcnaughton1971counterfree}. This condition concerns
 transformations induced by arbitrary words and is not directly apparent
 from the DFA's transition graph; deciding permutation-freeness is
 PSPACE-complete with respect to the size of the DFA. In contrast, aperiodicity of monoid 
-which means \(N\ge1\) such that \(x^N=x^{N+1}\) for every
-monoid element \(x\), can be decided in polynomial time with respect to the size of the monoid.
+can be decided in polynomial time with respect to the size of the monoid.
 Therefore, the syntactic monoid can be useful in property decision for regular languages. 
 
 How can we obtain the syntactic monoid of an unknown regular language? 
@@ -111,13 +110,13 @@ representation of the syntactic monoid within the active learning
 process itself. This route has some advantages in practical application. 
 For example, Vazquez-Chanlatte et al.\ use \(L^*\) with membership
 queries answered by large language models to learn DFA task
-specifications~\cite{vazquezchanlatte2025lstarlm}. In our setting,
+specifications~\cite{vazquezchanlatte2025lstarlm}. In practical settings,
 membership queries are assumed to return exact answers, whereas
-equivalence queries may be approximated by sampling. Errors
+equivalence queries are approximated by sampling. Errors
 overlooked by these tests cannot be corrected by subsequently
 computing the learned DFA's transition monoid. Our extension instead
 uses additional membership queries to check monoid consistency
-during learning, which may help find differences missed by the
+during learning, which can help find differences missed by the
 equivalence tests and improve the accuracy of the learned
 representation.
 
@@ -145,8 +144,9 @@ The remainder of this paper is organized as follows.
 Section~\ref{preliminaries} introduces the necessary terminology.
 Section~\ref{algorithm} describes the extended observation table and
 the two learning strategies. Section~\ref{main-results} establishes
-their correctness, Section~\ref{complexity-analysis} analyzes their
-complexity, and Section~\ref{conclusion} concludes the paper.
+their correctness. Section~\ref{complexity-analysis} analyzes their
+query complexity and discusses simulated equivalence queries, and
+Section~\ref{conclusion} concludes the paper.
 
 \section{Preliminaries}\label{preliminaries}
 
@@ -789,7 +789,7 @@ x\equiv_{\mathrm{status}}y
 \]
 This proves the proposition. \hfill $\square$
 
-\begin{proposition}[Well-definedness of the Hypothesis Automaton]\label{proposition-3-well-definedness-of-the-hypothesis-automaton}
+\begin{proposition}[Well-Definedness of the Hypothesis Automaton]\label{proposition-3-well-definedness-of-the-hypothesis-automaton}
 If the observation table \(\mathrm{OT}=(I,P,S,T)\) is closed and separable, 
 then the transition function \(\delta:Q\times\Sigma\to Q\) of the hypothesis automaton \(\mathcal{M}\) is well-defined.
 \end{proposition}
@@ -824,14 +824,14 @@ its initial and accepting states, then
 t \equiv_{\mathrm{status}} v \land t \not\sim_U v.
 \]
 \end{lemma}
-\noindent\textbf{Proof.} Assume that
+\noindent\textbf{Proof.} Assume, for a contradiction, that
 \[
 \forall t \in I\cdot\Sigma,\ \forall v\in I,\quad
-(t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v)
+(t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v).
 \tag{*}
 \]
 
-We claim that
+We first claim that
 \[
 \forall x\in\Sigma^*,\quad x\sim_U\rho(x)
 \]
@@ -848,11 +848,14 @@ unique representative for \(x\).
 Conversely, syntactically congruent words have identical observation rows by definition.
 Hence, \(\equiv_{\mathrm{status}}\) coincides with \(\sim_U\).
 
-Therefore, if \((*)\) held:
+Therefore, if \((*)\) held, we would have
 \[
 \forall x,y \in \Sigma^*,\quad x \equiv_{\mathrm{status}} y \Longrightarrow x \sim_U y.
 \]
-In other words: \(\equiv_{\mathrm{status}}\text{ is equal to }\sim_U\). Hence \((*)\) is false. Therefore,
+In other words, \(\equiv_{\mathrm{status}}\text{ is equal to }\sim_U\). 
+This contradicts our assumption that \(\mathcal{M}\) is not isomorphic to the 
+syntactic monoid of \(U\). 
+Therefore,
 \[
 \exists t\in I\cdot\Sigma,\ \exists v\in I,\quad
 t\equiv_{\mathrm{status}}v\land t\not\sim_U v.
@@ -881,8 +884,9 @@ Equivalently,
 \end{theorem}
 \noindent\textbf{Proof.} Since \(t\not\sim_U v\), there exist
 \(x,y\in\Sigma^*\) that distinguish \(t\) from \(v\).
-Assume that \(xty\in U\) and
-\(xvy\notin U\) and the other case \(xvy\in U\) and \(xty\notin U\) is similar.
+We prove the case where \(xty\in U\) and
+\(xvy\notin U\).
+The other case where \(xvy\in U\) and \(xty\notin U\) is similar.
 
 Let \(i=\rho(x)\in I\) be the path representative of \(x\).
 By Proposition~\ref{proposition-2.2-status-equivalence-implies-suffix-equivalence}, \(x\equiv_S i\). Applying Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence} gives
@@ -918,7 +922,7 @@ isomorphic to the syntactic monoid of the target language.
 Before we introduce the proof process of the correctness of the extension algorithm,
 we need 2 prepared lemmas and show their proof processes.
 
-\begin{lemma}[Extension for each Transition Step from Status Equivalence to Syntactic Congruence]\label{Extension for each transition step from status equivalence to syntactic congruence}
+\begin{lemma}[Extension for Each Transition Step from Status Equivalence to Syntactic Congruence]\label{Extension for each transition step from status equivalence to syntactic congruence}
   Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
@@ -934,7 +938,8 @@ for every \(v\in I\) and \(t\in I\cdot\Sigma\),
 t\equiv_{\mathrm{status}}v \Longrightarrow
 \bigl(\forall i\in I,\ \forall s\in S,\quad \chi(its)=\chi(ivs)\bigr).
 \]
-Therefore \(\forall i\in I,\quad it\equiv_S iv\). By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence}, \[
+Therefore for each \(i\in I\), \(it\equiv_S iv\). 
+By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruence}, \[
 \forall w\in\Sigma^*,\quad
 itw\in U\Longleftrightarrow ivw\in U.
 \]
@@ -944,7 +949,7 @@ By Proposition~\ref{proposition-2.3-right-consistency-and-myhill-nerode-congruen
 \[
 \forall z\in\Sigma^*,\quad pz\in U \Longleftrightarrow iz\in U.
 \]
-Let \(z_1 = tw\) and \(z_2 = vw\):
+Let \(z_1 = tw\) and \(z_2 = vw\), then we have
 \[
 ptw\in U
 \Longleftrightarrow
@@ -961,7 +966,7 @@ t\equiv_{\mathrm{status}}v \Longrightarrow t\sim_U v
 \] holds. 
 \hfill $\square$
 
-\begin{lemma}[Extension for any Words from Status Equivalence to Syntactic Congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
+\begin{lemma}[Extension for Any Words from Status Equivalence to Syntactic Congruence]\label{Extension for any strings from status equivalence to syntactic congruence}
 Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
@@ -973,7 +978,7 @@ x\sim_U\rho(x)
 \textbf{Proof.}
 We prove this claim by induction on \(x\).
 
-\noindent\textbf{Base.} If \(x=\epsilon\), then \(\rho(\epsilon)=\epsilon\),
+\noindent\textbf{Base case.} If \(x=\epsilon\), then \(\rho(\epsilon)=\epsilon\),
 so \(\epsilon\sim_U\rho(\epsilon)\).
 
 \noindent\textbf{Induction step.} Let \(x=ya\) with \(a\in\Sigma\).
@@ -984,7 +989,7 @@ By Lemma~\ref{Extension for each transition step from status equivalence to synt
 Therefore, \(ya \sim_U \rho(ya)\), in other words, \(x \sim_U \rho(x)\). This completes the induction.
 \hfill $\square$
 
-\begin{theorem}[Correctness of the Extended \(L^*\) Algorithm for the \texttt{Post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
+\begin{theorem}[Correctness of the Extended \(L^*\) Algorithm for the \texttt{post\_check} Strategy]\label{theorem-correctness-of-extended-lstar-algorithm-for-post-check-strategy}
 Let \(\mathrm{OT}=(I,P,S,T)\) be an observation table that
 is closed, separable, right consistent, and monoid consistent. Let
 \(\mathcal M\) be the acceptor constructed from \(\mathrm{OT}\). If
@@ -1423,12 +1428,10 @@ internal computation is not analyzed separately.
 \section{Conclusion}\label{conclusion}
 
 We presented two extensions of \(L^*\) for actively learning the
-syntactic monoid of an unknown regular language. Under exact
-equivalence queries, both strategies correctly recover a
-representation of the target syntactic monoid with query complexity
-polynomial in its size, the alphabet size, and the maximum
-counterexample length. We also proposed a sampling-based EQ procedure
-and a simple model for estimating its cost.
+syntactic monoid of an unknown regular language. Both strategies use
+an observation table with left and right contexts to maintain monoid
+consistency. Under exact equivalence queries, both strategies
+correctly recover a representation of the target syntactic monoid.
 
 
 \bibliographystyle{ieicetr}

@@ -36,7 +36,7 @@ latexmk -pdf ieice_draft.tex
 或在仓库根目录运行：
 
 ```sh
-latexmk -cd -pdf -outdir=build papers/ieice/ieice_draft.tex
+latexmk -pdf papers/ieice/ieice_draft.tex
 ```
 
 两种方式都将 PDF、中间文件及 SyncTeX 输出到本目录的 `build/`。

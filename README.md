@@ -119,12 +119,13 @@ Install a TeX distribution with latexmk, then compile either manuscript from the
 repository root:
 
 ```sh
-latexmk -cd -pdf -outdir=build papers/ieice/ieice_draft.tex
-latexmk -cd -pdf -outdir=build papers/master_thesis/thesis_draft.tex
+latexmk -pdf papers/ieice/ieice_draft.tex
+latexmk -pdf papers/master_thesis/thesis_draft.tex
 ```
 
-Each project can also be opened independently for editing. Build products stay
-in that project's own `build/` directory and are excluded from Git.
+In VS Code with LaTeX Workshop, open the repository root, `papers/`, or an
+individual manuscript directory. Each workspace uses the manuscript's own
+`build/` directory for build products, which are excluded from Git.
 
 ## Requirements
 
