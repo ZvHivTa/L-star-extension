@@ -66,7 +66,7 @@ syntactic monoid, regular language, active automata learning
 \section{Introduction}\label{introduction}
 
 Angluin's \(L^*\) algorithm is an active learning algorithm that learns the minimal deterministic
-finite automaton (DFA) of an unknown regular language through
+finite automaton (minimal DFA) of an unknown regular language through
 membership and equivalence queries~\cite{angluin87}. In this paper, let \(\Sigma\) be a fixed finite alphabet, 
 and \(U\subseteq\Sigma^*\) be an unknown regular language. 
 The learner does not require access to an internal representation of \(U\):
@@ -89,9 +89,9 @@ The minimal DFA captures the behavior of a language through its states
 and transitions. The syntactic monoid additionally exposes the algebra
 of word concatenation, making algebraic properties of the language
 accessible. For example, a regular language is \emph{star-free} exactly when
-its syntactic monoid is \emph{aperiodic} if there is an integer \(N\ge1\) such that \(x^N=x^{N+1}\) for every
+its syntactic monoid is \emph{aperiodic}, that is, there is an integer \(N\ge1\) such that \(x^N=x^{N+1}\) for every
 element \(x\) ~\cite{SCHUTZENBERGER1965190}.
-Equivalently, its minimal DFA is \emph{permutation-free}: no word induces
+Equivalently, its minimal DFA is \emph{permutation-free}, that is, no word induces
 a nontrivial permutation on any subset of its
 states~\cite{mcnaughton1971counterfree}. This condition concerns
 transformations induced by arbitrary words and is not directly apparent
@@ -110,22 +110,22 @@ representation of the syntactic monoid within the active learning
 process itself. This route has some advantages in practical application. 
 For example, Vazquez-Chanlatte et al.\ use \(L^*\) with membership
 queries answered by large language models to learn DFA task
-specifications~\cite{vazquezchanlatte2025lstarlm}. In practical settings,
-membership queries are assumed to return exact answers, whereas
-equivalence queries are approximated by sampling. Errors
-overlooked by these tests cannot be corrected by subsequently
+specifications~\cite{vazquezchanlatte2025lstarlm}. 
+In such active learning settings, membership queries are assumed to return exact answers, whereas
+equivalence queries are approximated by sampling. 
+Errors overlooked by these tests cannot be corrected by subsequently
 computing the learned DFA's transition monoid. Our extension instead
 uses additional membership queries to check monoid consistency
 during learning, which can help find differences missed by the
 equivalence tests and improve the accuracy of the learned
 representation.
 
-These two representations arise from different equivalence relations
+The minimal DFA and the syntactic monoid arise from different equivalence relations
 on words. The states of the minimal DFA correspond to classes of the
 Myhill--Nerode right congruence, which distinguishes words by their
 possible suffixes. In contrast, the syntactic monoid is the quotient
-of \(\Sigma^*\) by syntactic congruence, which distinguishes words by
-both left and right contexts. Its right Cayley graph describes
+of \(\Sigma^*\) by the syntactic congruence, which distinguishes words by
+both left and right contexts. The right Cayley graph of the syntactic monoid describes
 multiplication by the input letters. Taking the identity element as
 the initial state and marking the classes contained in \(U\) as
 accepting turns this graph into a DFA recognizing \(U\).
@@ -202,7 +202,7 @@ We call this relation the \emph{Myhill--Nerode right congruence} of \(L\).
 This relation is a right congruence: if
 \(w\equiv_L^{\mathrm{MN}}w'\), then
 \(wx\equiv_L^{\mathrm{MN}}w'x\) for every \(x\in\Sigma^*\).
-Write \([w]_{\mathrm{MN}}\) for the class of \(w\).
+Write \([w]_{\mathrm{MN}}\) for the equivalence class of \(w\).
 The Myhill--Nerode theorem states that \(L\) is regular if and only if
 this relation has finitely many equivalence classes~\cite{myhill1957finite,nerode1958linear}. These classes
 form the state set of the minimal DFA: the initial state is
@@ -219,7 +219,7 @@ w\sim_L w^{\prime}
 \bigl(\forall u,v\in\Sigma^*,\quad uwv\in L\Longleftrightarrow uw'v\in L\bigr)
 \] for each \(w,w'\in\Sigma^*\).
 We call this relation the \emph{syntactic congruence} of \(L\).
-Thus syntactic congruence tests both left and right contexts.
+Thus the syntactic congruence tests both left and right contexts.
 This relation is a two-sided congruence: \(w\sim_L w'\) implies
 \(uwv\sim_L uw'v\) for all \(u,v\in\Sigma^*\).
 Taking the left context to be \(\epsilon\) shows that
@@ -250,7 +250,7 @@ and \(a\in\Sigma\). Thus each vertex has exactly one outgoing
 edge for each letter. Define the corresponding transition function
 by \(\delta_L(m,a)=m\cdot\eta_L(a)\).
 
-For regular \(L\), selecting \(1_L\) as the initial state and
+For a regular language \(L\), selecting \(1_L\) as the initial state and
 \(F_L\) as the accepting states turns this graph into the DFA
 \(\mathcal{M}_L=(M(L),\Sigma,\delta_L,1_L,F_L)\).
 Indeed, \(\delta_L^*(1_L,w)=\eta_L(w)=[w]_L\), so a word
@@ -536,9 +536,9 @@ If \(L(\mathcal{M})=U\), proceed to Phase~4.
 For each \(t\in I\cdot\Sigma\), find its representative \(v\in I\)
 such that \(t\equiv_{\mathrm{status}}v\). Check all \(i\in I\) and
 \(s\in S\) for a violation
-\[
+\(
 \chi(its)\neq \chi(ivs).
-\]
+\)
 If a violation is found, add its left context \(i\) to \(P\).
 This distinguishes \(t\) from \(v\). Fill the new table entries and
 return to Phase~2. If every pair passes the check, return the
