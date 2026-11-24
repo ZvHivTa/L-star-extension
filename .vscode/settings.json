@@ -26,7 +26,13 @@
   "latex-workshop.latex.recipe.default": "first",
   "latex-workshop.latex.search.rootFiles.include": [
     "papers/ieice/ieice_draft.tex",
-    "papers/master_thesis/thesis_draft.tex"
+    "papers/master_thesis/thesis_draft.tex",
+    "slides/semi02/main.tex",
+    "slides/semi03/main.tex",
+    "slides/semi04/main.tex",
+    "slides/semi05/main.tex",
+    "slides/Tyukan/main.tex",
+    "slides/ieice_slide/main.tex"
   ],
   "latex-workshop.latex.search.rootFiles.exclude": [
     "**/ieice-tecrep_v1.1/**",

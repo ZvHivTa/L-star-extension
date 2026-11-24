@@ -93,7 +93,15 @@ P grows when syntactic monoid consistency is violated.
 ├── experiment_results/
 ├── tests/
 ├── papers/
-│   └── ieice/
+│   ├── ieice/
+│   └── master_thesis/
+├── slides/
+│   ├── semi02/
+│   ├── semi03/
+│   ├── semi04/
+│   ├── semi05/
+│   ├── Tyukan/
+│   └── ieice_slide/
 └── docs/
 ```
 
@@ -114,6 +122,10 @@ Important files:
 - `papers/master_thesis/`: self-contained full master's thesis draft, including
   complexity analysis and simulated EQs, currently using the IEICE layout.
   See its [build instructions](papers/master_thesis/README.md).
+- `slides/`: four seminar Beamer projects (`semi02`--`semi05`), the `Tyukan`
+  interim presentation article, and the current IEICE presentation project
+  `ieice_slide`, initially based on `semi05`. Each project builds into its own `build/`.
+  See the [seminar build instructions](slides/README.md).
 
 Install a TeX distribution with latexmk, then compile either manuscript from the
 repository root:
@@ -123,8 +135,8 @@ latexmk -pdf papers/ieice/ieice_draft.tex
 latexmk -pdf papers/master_thesis/thesis_draft.tex
 ```
 
-In VS Code with LaTeX Workshop, open the repository root, `papers/`, or an
-individual manuscript directory. Each workspace uses the manuscript's own
+In VS Code with LaTeX Workshop, open the repository root, `papers/`, `slides/`,
+or an individual TeX project directory. Each workspace uses the project's own
 `build/` directory for build products, which are excluded from Git.
 
 ## Requirements

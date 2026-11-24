@@ -1,0 +1,88 @@
+% !TeX root = main.tex
+\documentclass[10pt, a4paper]{article} % 1. 改为标准的 article，使用 a4paper
+\usepackage{multicol}
+\usepackage{geometry} % 虽然你用了手动设置，但引入这个包通常更稳
+\usepackage{times}    % 2. 英文论文通常使用 Times New Roman 字体
+\usepackage{enumitem}
+\usepackage{indentfirst}
+
+%%%%% 页面边距设置 (保留了你的原始数值) %%%%%%
+\setlength{\textheight}{\paperheight}
+\setlength{\topmargin}{-15.4mm}       % 3. 将 truemm 改为标准的 mm
+\addtolength{\topmargin}{-\headheight}
+\addtolength{\topmargin}{-\headsep}
+\addtolength{\textheight}{-20mm}
+\setlength{\textwidth}{\paperwidth}
+\setlength{\oddsidemargin}{-10.4mm}
+\setlength{\evensidemargin}{\oddsidemargin}
+\addtolength{\textwidth}{-30mm}
+
+%%%%% 行间距设置 %%%%%
+\renewcommand{\baselinestretch}{.95}
+
+\pagestyle{empty}
+
+%%%%% 标题部分 %%%%%
+\title{\textbf{Extend L* algorithm to Learn Syntactic Monoid}} % 加粗标题
+\author{Haotian Zhang (Yuen/Nakazawa lab)}     % 英文作者名
+\date{}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+%%%%% 正文分栏开始 %%%%%
+\begin{multicols}{2} % 注意：通常学术双栏是 {2}，如果你确认要单栏请改成 {1}
+
+\section{Introduction}
+\subsection{L* Algorithm}
+    The $L^*$ algorithm, introduced by Dana Angluin in 1987, is a seminal algorithm for learning regular languages via queries. \cite{angluin87}
+    It operates based on an interaction between two entities: a Learner and a Teacher. The Learner's objective is to construct the minimal Deterministic Finite Automaton (DFA) for an unknown regular language $L$.
+    The learning process relies on two specific types of queries:
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Membership Queries:} The Learner asks whether a specific string $w$ belongs to $L$. The Teacher responds with ``yes'' or ``no''.
+    \item \textbf{Equivalence Queries:} The Learner proposes a hypothesis automaton $A$. The Teacher either confirms that $A$ is correct or provides a counterexample---a string that is accepted by $L$ but rejected by $A$ (or vice versa).
+\end{enumerate}
+
+    The Learner organizes these responses into an \textbf{observation table} $(I,S,T)$, which $I$ is the candidate state set, $S$ is the test suffix set, $T$ is a bool function representing the mapping in table. By maintaining the Closedness and separablity and properly dealing with counterexamples in $O(log|w|)$($|w|$ is the length of counterexample) \cite{Worrell:DFALearning} to iteratively refine this table, the Learner updates its hypothesis until it converges on the correct minimal DFA. Actually this is based on the Myhill-Nerode congruence: 
+\begin{equation}
+    u \equiv_L v \iff \forall w \in \Sigma^*, uw \in L \Leftrightarrow vw \in L
+\end{equation}
+
+\subsection{Syntactic Monoid}
+Syntactic Monoid is the monoid with the minimum order that recognizes a regular language $L$. The underlying set is the quotient set by the syntactic congruence of $L$:
+\begin{equation}
+    u \sim_L v \iff \forall x,y \in \Sigma^*, xuy \in L \Leftrightarrow xvy \in L
+\end{equation}
+
+And the operation is the concatenation of representatives. Syntactic monoid is considered to characterize certain properties of regular languages, such as star-freeness and aperiodicity. 
+\subsection{My research motivation and goal}
+As for now, we know how to learn the minimal DFA of a regular language using the L* algorithm in polynomial time related to the size of the minimal DFA and the length of the longest counterexample. 
+However, if we want to transform the minimal DFA to the syntactic monoid, it is $O(n^n)$ time complexity, where $n$ is the number of states of the minimal DFA. \cite{holzer2004deterministic}
+Because when we want to decide some properties of regular languages, such as star-freeness and aperiodicity, we have to compute the syntactic monoid first. So it is natural to ask whether we can learn the syntactic monoid directly. 
+
+My research goal is to extend the L* algorithm to directly learn the syntactic monoid of a regular language. By adapting the learning aspects of the L* algorithm, I aim to improve L* Algorithm that can efficiently construct the syntactic monoid based on membership and equivalence queries. 
+
+\section{Idea and contribution}
+The observation table in the original L* algorithm is two-dimensional, focused on test suffix because of the definition of the Myhill-Nerode congruence. 
+To adapt this structure for learning syntactic monoids, the plain idea is to extend it to a three-dimensional observation table. 
+In a new structure $(I,P,S,T)$, adding $P$ as the test prefix set, and modifying the bool function $T$ to accommodate the syntactic congruence definition. 
+
+And because of the definition of syntactic congruence, we need to adjust the Closedness property of the observation table. We need two-side Closedness and we want to modify the acceptor into a new model that can represent monoids, such as $M = (Q,\Sigma,l/r,\delta,q_0,F)$, where $l/r$ is the left/right concatenation. 
+Then we can use the "equivalence under the test words" to generalize the syntactic congruence by induction. 
+
+For counterexamples, we now use the plain idea that adding all the prefixes and suffixes of the counterexample into $P$ and $S$. Although this is not efficient, if the algorithm can work correctly, we can further optimize it later.
+
+\section{Future work}
+\begin{enumerate}[leftmargin=*]
+    \item \textbf{Proof of correctness:} Using the improvement we introduced, we need to prove that the new algorithm can always get the correct syntactic monoid of the target regular language.
+    \item \textbf{Computational cost and improvement:} Theoretically evaluate if the extension algorithm is a polynomial-time algorithm. Try to reduce useless information during the process to improve computational cost, for example, optimize the handling of counterexamples.
+    \item \textbf{Implementation and Experiment:} Implement the extended algorithm and conduct experiments for problems such as the decidability of star-free languages.
+\end{enumerate}
+
+%%%%% 参考文献 %%%%%
+\bibliographystyle{plain} 
+\bibliography{references}
+
+\end{multicols}
+\end{document}

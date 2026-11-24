@@ -1,0 +1,829 @@
+% !TeX root = main.tex
+\documentclass{beamer}
+
+% ==================================================================
+% Packages & Setup
+% ==================================================================
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{graphicx}
+\usefonttheme[onlymath]{serif}
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xcolor}
+\setbeamertemplate{bibliography item}[text]
+
+% --- Theme Setup ---
+\usetheme{Madrid}
+
+% --- Auto-Outline at beginning of each section ---
+\AtBeginSection[]{
+    \begin{frame}
+        \frametitle{Outline}
+        \tableofcontents[currentsection, hideothersubsections, sectionstyle=show/shaded]
+    \end{frame}
+}
+
+% ==================================================================
+% Title Information
+% ==================================================================
+\title{Extending L* algorithm to Learn Syntactic Monoids}
+\author{Haotian Zhang}
+\date{\today}
+
+\begin{document}
+
+% ------------------------------------------------------------------
+% Title Page
+% ------------------------------------------------------------------
+\frame{\titlepage}
+
+% ------------------------------------------------------------------
+% Main Outline
+% ------------------------------------------------------------------
+\begin{frame}
+    \frametitle{Outline}
+    \tableofcontents
+\end{frame}
+
+
+% ==================================================================
+% Section 1: L* Algorithm
+% ==================================================================
+\section{L* algorithm}
+
+% ------------------------------------------------------------------
+% Frame: Concept of L* (Membership & Equivalence Queries)
+% ------------------------------------------------------------------
+\begin{frame}{L* algorithm - Learning Minimal DFA}
+    \begin{block}{L* algorithm -- Learning a minimal DFA}
+        For an unknown regular language $U \subseteq \Sigma^*$, find $U$'s expression using two types of queries:\cite{angluin87}
+        \begin{itemize}
+            \item \textbf{Membership query:} For a word $w \in \Sigma^*$, is $w \in U$?
+            \item \textbf{Equivalence query:} For a DFA $\mathcal{A}$, is $L(\mathcal{A}) = U$? If the answer is no, then we can obtain a counterexample. 
+        \end{itemize}
+    \end{block}
+    
+    \begin{columns}
+        \begin{column}{0.6\textwidth} 
+            \centering
+            % 
+            \includegraphics[width=\textwidth]{L-star-concept.png} 
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Observation Table Definition
+% ------------------------------------------------------------------
+\begin{frame}{L* algorithm - Observation Table }
+    \begin{columns}[T]
+        % --- Left Column: Definitions ---
+        \begin{column}{0.6\textwidth}
+            \begin{itemize}
+                \item $U$ : Unknown regular language. 
+                \item $\Sigma$ : Alphabet, in example it is $\{a,b\}$
+                \item $I$ : Set of test states
+                \item $S$ : Set of suffixes
+                \item $T$: $(I \cup I \cdot \Sigma \times S) \to \{0,1\}$
+                \item $OT$ : {\small Observation table, a 3-tuple } $(I,S,T)$
+                \item $status$: A function $status:= S \rightarrow\{0,1\}$. And $status_i(s) = T(i,s)$
+            \end{itemize}
+        \end{column}
+
+        % --- Right Column: Example Table ---
+        \begin{column}{0.6\textwidth}
+            \centering
+            \begin{tabular}{cc|c|c}
+                &   & \multicolumn{2}{c}{$S$} \\ 
+                \multicolumn{2}{c|}{} & $\epsilon$ & a \\ \hline
+                & $\epsilon$ & 1 & 0 \\
+                {$I$}& a          & 0 & 1 \\
+                & b          & 0 & 0 \\\hline
+                
+                & aa& 1& 0 \\
+                {$I\cdot \Sigma$}        & ab& 0&0\\
+                & ba         & 0 & 0 \\
+                & bb         & 1 & 0 \\ 
+            \end{tabular}
+            \par \vspace{0.2cm} 
+            {\footnotesize $L = (aa + a^* b a^* b)^*$}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Closed & Separable Definitions
+% ------------------------------------------------------------------
+\begin{frame}{L* algorithm - Closed \&  Separable}
+    \textbf{Suffix-equivalent for $u, v \in \Sigma^{*}$: }
+    $$
+        u \equiv_{S} v \Leftrightarrow  \forall s \in S .status_u(s) = status_{v}(s)
+    $$
+    \textbf{\small Separable}: \small no two distinct words in $I$ are \textbf{Suffix-equivalent}. 
+
+    \textbf{Closed: }
+    $$
+        \forall i \in I , a \in \Sigma, \exists i^{\prime} \in I.ia \equiv_{S} i^{\prime}
+    $$
+    \centering
+    \begin{tabular}{cc|c|c}
+        &   & \multicolumn{2}{c}{$S$} \\ 
+        \multicolumn{2}{c|}{} & $\epsilon$ & a \\ \hline
+        & $\epsilon$ & 1 & 0 \\
+        {$I$}& a          & 0 & 1 \\
+        & b          & 0 & 0 \\ \hline
+        
+        & aa& 1& 0 \\
+        {$I \cdot \Sigma$}& ab& 0&0\\
+        & ba         & 0 & 0 \\
+        & bb         & 1 & 0 \\  
+    \end{tabular}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Acceptor Definition
+% ------------------------------------------------------------------
+\begin{frame}{Acceptor}
+    The \textbf{Acceptor} of $(I,P,S,T)$ is a 5-tuple $\mathcal{M} = (Q,\Sigma,\delta,q_0,F)$:
+    \begin{itemize}
+        \item $Q = \{status_i \mid i \in I\}$
+        \item $q_0 = status_{\epsilon} \in Q$
+        \item $F = \{status_i \in Q \mid status_i(\epsilon) = 1\}$
+        \item $\delta \colon Q \times \Sigma \to Q$ is the transition function.
+    \end{itemize}
+    \begin{block}{Construction of transition function}
+        For $q \in Q, a \in \Sigma$, if $q = status_i$ ($i \in I$) and we have $ia \equiv_{S} i'$, $i' \in I$, then:
+        \[
+            \delta(q,a) = status_{i'}
+        \]
+        The transition function $\delta$ is extended to $\delta^{*} \colon Q \times \Sigma^{*} \to Q$:
+        \[
+            \delta^{*}(q,w) = 
+            \begin{cases}
+                q & \text{if } w = \epsilon \\
+                \delta(\delta^*(q,w'),a) & \text{if } w = w'a, a \in \Sigma
+            \end{cases}
+        \]
+    \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Process Step 1 & 2 (Table Expansion)
+% ------------------------------------------------------------------
+\begin{frame}{L* algorithm - Algorithmic Process}
+    1. $I:= S := \{\epsilon\}$\\
+    2. If $OT$ is not closed but separable, use \textbf{membership queries} to find a $w^{\prime} \in I \cdot \Sigma$, which for any $s\in S$ , $status_{w^{\prime}}(s)$ is different from any $status_{w}(s),w \in I$. Add $w^{\prime}$ to $I$ and expand $I \cdot \Sigma$. Repeat this operation until $OT$ is separable and closed.\\
+    
+    \begin{columns}[T]
+        % --- Left Column: Not Closed Example ---
+        \begin{column}{0.45\textwidth} 
+            \centering
+            \begin{tabular}{cc|c|c}
+                &   & \multicolumn{2}{c}{$S$} \\ 
+                \multicolumn{2}{c|}{} & $\epsilon$ & a \\ \hline
+                & $\epsilon$ & 1 & 0 \\
+                {$I$}& a          & 0 & 1 \\ \hline
+                 & \textcolor{red}{b}          & 0 & 0 \\
+                {$I \cdot \Sigma$}           & aa& 1& 0 \\
+                & ab& 0&0\\ 
+                \multicolumn{4}{c}{} \\[-0.8em] 
+                \multicolumn{4}{c}{\footnotesize Not closed}
+            \end{tabular}
+        \end{column}
+    
+        % --- Right Column: Closed Example ---
+        \begin{column}{0.45\textwidth} 
+            \centering
+            \begin{tabular}{cc|c|c}
+                &   & \multicolumn{2}{c}{$S$} \\ 
+                \multicolumn{2}{c|}{} & $\epsilon$ & a \\ \hline
+                & $\epsilon$ & 1 & 0 \\
+                {$I$}& a          & 0 & 1 \\
+                & \textcolor{red}{b}          & 0 & 0 \\\hline
+                & aa& 1& 0 \\
+                {$I\cdot \Sigma$}        & ab& 0&0\\
+                & \textcolor{red}{ba}         & 0 & 0 \\
+                & \textcolor{red}{bb}           & 1 & 0 \\ 
+                \multicolumn{4}{c}{} \\[-0.8em] 
+                \multicolumn{4}{c}{\footnotesize Closed}
+            \end{tabular}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Process Step 3-6 (Equivalence Query & Loop)
+% ------------------------------------------------------------------
+\begin{frame}{L* algorithm - Algorithmic Process}
+    3. We can get an \textbf{Acceptor} (hypothesis automaton) and ask an \textbf{equivalence query} for it. \\
+    4. If the answer is yes, algorithm terminates and \textbf{Acceptor} is the answer. \\
+    5. If the answer is no, find a counterexample $w$ in $O(log|w|)$\cite{rivest1993inference}. Properly find the most precise suffix and add it to $S$. Now $OT$ must not be closed. \\
+    6. Return to 2. 
+    
+    \begin{columns}
+        \begin{column}{0.4\textwidth} 
+            \centering
+            % 
+            \includegraphics[width=\textwidth]{automaton.png} 
+             \par \vspace{0.2cm} 
+            {\footnotesize $L = (aa + a^* b a^* b)^*$}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+% ------------------------------------------------------------------
+% Frame: Process Step Summary
+% ------------------------------------------------------------------
+\begin{frame}{L* algorithm - Algorithmic Process}
+    
+    \begin{columns}
+        \begin{column}{1.0\textwidth}
+            \centering
+            % 
+            \includegraphics[width=\textwidth]{algorithm_process.png} 
+             \par \vspace{0.2cm} 
+        \end{column}
+    \end{columns}
+\end{frame}
+
+
+% ==================================================================
+% Section 2: Minimal DFA vs. Syntactic Monoid
+% ==================================================================
+\section{Minimal DFA vs. Syntactic Monoid}
+
+% ------------------------------------------------------------------
+% Frame: Definition of Minimal DFA
+% ------------------------------------------------------------------
+\begin{frame}{Minimal DFA}
+
+    Let $L$ be a regular language.
+    \begin{block}{Minimal DFA of L, $A_L$}
+        {\small The DFA with the minimum number of states that recognizes $L$.}
+        \begin{itemize}
+            \item The set of states is the quotient set by the Myhill-Nerode (right) congruence:
+            $$ w \equiv_{L} w' \iff \forall v \in \Sigma^*. (wv \in L \iff w'v \in L) $$
+            The state set is $\Sigma^* / \equiv_L$.
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Definition of Syntactic Monoid
+% ------------------------------------------------------------------
+\begin{frame}{Syntactic Monoid}
+    Let $L$ be a regular language.
+    \begin{block}{Syntactic Monoid of L, $M_L$}
+        The monoid with the minimum order that recognizes $L$.
+        \begin{itemize}
+            \item The underlying set is the quotient set by the syntactic congruence:
+            $$ w \cong_{L} w' \iff \forall u, v \in \Sigma^*. (uwv \in L \iff uw'v \in L) $$
+            The set is $\Sigma^* / \cong_L$.
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Comparison Example (DFA vs Monoid)
+% ------------------------------------------------------------------
+\begin{frame}{Minimal DFA vs. Syntactic Monoid}
+    \textbf{Example:} Let $L = (ab)^* \subseteq \{a, b\}^*$.
+    \vspace{-0.4em} 
+    \begin{columns}
+        % --- Left: Minimal DFA ---
+        \begin{column}{0.48\textwidth} 
+            \centering
+            \textbf{Minimal DFA $A_L$} 
+            % 
+            \includegraphics[width=\textwidth]{1.png} 
+        \end{column}
+    
+        % --- Right: Syntactic Monoid ---
+        \begin{column}{0.48\textwidth} 
+            \centering
+            \textbf{Syntactic Monoid $M_L$} 
+            (Right Cayley Graph) 
+            % 
+            \includegraphics[width=\textwidth]{2.png} 
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Properties Summary
+% ------------------------------------------------------------------
+\begin{frame}{Properties of Syntactic Monoids}
+    $|M_L| = M$, $|A_L| = n$ and $|\Sigma| = k$.
+    \begin{block}{}
+        \begin{itemize}
+            \item \small In general, $M \ge n$. 
+            \item \small Generally the upper bound of $M$ is $n^n$.
+            \item \small The way to construct the syntactic monoid from the minimal DFA, the time comlexity is $O(kMn)$ \cite{froidure1997algorithms}.
+            \item \small Some properties can be decided more efficiently than with DFAs, e.g., star-freeness, commutativity, Green's relations, etc.
+        \end{itemize}
+    \end{block}
+    \begin{center}
+        \textbf{\small Goal: We want to learn the syntactic monoid $M_L$ directly based on the idea of L* algorithm!}
+    \end{center}
+\end{frame}
+
+
+% ==================================================================
+% Section 3: Idea of Learning Syntactic Monoid
+% ==================================================================
+\section{Idea of Learning Syntactic Monoid}
+
+
+% ------------------------------------------------------------------
+% Frame: Extended Observation Table (4-tuple)
+% ------------------------------------------------------------------
+\begin{frame}{Summary of Idea}
+    \begin{itemize}
+        \item Extend the observation table to check both prefixes and suffixes.
+        \item Define a new acceptor to recognize the language using syntactic monoid.
+        \item Use the process based on 2 types of query.
+    \end{itemize}    
+
+    \begin{alertblock}{Limitations}
+        \begin{itemize}
+            \item Termination: Successful completion of the \textbf{Equivalence Query} ($L(\mathcal{M}) = U$).
+            \item Correctness: Even if the language is correct, the resulting acceptor may not be the Right
+Cayley Graph of \textbf{syntactic monoid} because the definition of the equivalence query.
+        \end{itemize}
+    \end{alertblock}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Extended Observation Table (4-tuple)
+% ------------------------------------------------------------------
+\begin{frame}{Idea - Terminology}
+    \begin{itemize}
+        \item $U$ : Unknown regular language
+        \item $\Sigma$ : Alphabet
+        \item \textbf{\color{red}{$P$}} : Set of prefixes
+        \item $S$ : Set of suffixes
+        \item $I$ : Set of test states
+        \item \textbf{\color{red}{$T$}}: $P\times (I \cup I \cdot \Sigma) \times S \to \{0,1\}$
+        \item \textbf{\color{red}{$OT$}} : {\small Observation table. Actually it is a 4-tuple} $(P,I,S,T)$
+        \item \textbf{\color{red}{$status$}}: A function $status:= (P \times S) \rightarrow\{0,1\}$. And $status_i (p,s) = T(p,i,s)$
+    \end{itemize}    
+\end{frame}
+
+
+% ------------------------------------------------------------------
+% Frame: Status-equivalent & Closed
+% ------------------------------------------------------------------
+\begin{frame}{Idea - Closed \& Separable}
+    \textbf{Status-equivalent for $i, i^{\prime}\in \Sigma^{*}$: }
+    $$
+        i \equiv_{status} i^{\prime} \Leftrightarrow  \forall p \in P,s \in S. status_i(p,s) = status_{i^{\prime}}(p,s)
+    $$
+    \textbf{Separable}: no two distinct words in $I$ are \textbf{Status-equivalent}. 
+    
+    \textbf{Closed: }
+    $$
+        \forall i^{\prime} \in I \cdot \Sigma,  \exists i \in I.(i \equiv_{status} i^{\prime}) 
+    $$
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Acceptor Definition
+% ------------------------------------------------------------------
+\begin{frame}{Acceptor}
+    The \textbf{Acceptor} of $(I,P,S,T)$ is a 5-tuple $\mathcal{M} = (Q,\Sigma,\delta,q_0,F)$:
+    \begin{itemize}
+        \item $Q = \{status_i \mid i \in I\}$
+        \item $q_0 = status_{\epsilon} \in Q$
+        \item $F = \{status_i \in Q \mid status_i(\epsilon,\epsilon) = 1\}$
+        \item $\delta \colon Q \times \Sigma \to Q$ is the transition function.
+    \end{itemize}
+    \begin{block}{Construction of transition function}
+        For $q \in Q, a \in \Sigma$, if $q = status_i$ ($i \in I$) and we have $ia \equiv_{status} i'$, $i' \in I$, then:
+        \[
+            \delta(q,a) = status_{i'}
+        \]
+        The transition function $\delta$ is extended to $\delta^{*} \colon Q \times \Sigma^{*} \to Q$:
+        \[
+            \delta^{*}(q,w) = 
+            \begin{cases}
+                q & \text{if } w = \epsilon \\
+                \delta(\delta^*(q,w'),a) & \text{if } w = w'a, a \in \Sigma
+            \end{cases}
+        \]
+    \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Monoid consistency
+% ------------------------------------------------------------------
+\begin{frame}{Idea - Monoid Consistency}
+    The definition of \textbf{monoid consistency} is: 
+    $$
+		\forall v \in I, t\in I\cdot\Sigma. (t \equiv_{status} v) \Rightarrow \forall i\in I, s\in S, T(i\cdot t \cdot s) = T(i \cdot v \cdot s)
+    $$
+	We will introduce how to check monoid consistency and why we define like this in the following part.		
+
+\end{frame}
+
+% ==================================================================
+% Slide: Proposition 3
+% ==================================================================
+\begin{frame}{Proposition 3 - Monoid Consistency Check}
+    Assume that the Acceptor $\mathcal{M}$ passes the equivalence query ($L(\mathcal{M}) = U$), 
+    but $\mathcal{M}$ is not the Right Cayley Graph of $U$. 
+    
+    \begin{block}{Failure of Monoid Consistency}
+        According to the assumption, we must have:
+        \[
+        \exists v \in I, t \in I \cdot \Sigma. (t \equiv_{status} v) \wedge (t \not\sim_L v)
+        \]
+    \end{block}
+
+    \begin{block}{Core Conclusion}
+        For such $v$ and $t$, the following is correct:
+        \[
+         \exists i \in I, s \in S. T(i \cdot t \cdot s) \neq T(i \cdot v \cdot s)
+        \]
+        In other words:
+        \[
+        (i \cdot t \cdot s \in U \wedge i \cdot v \cdot s \notin U) \vee (i \cdot t \cdot s \notin U \wedge i \cdot v \cdot s \in U)
+        \]
+    \end{block}
+\end{frame}
+
+% ==================================================================
+% Slide: Proof of Proposition 3
+% ==================================================================
+\begin{frame}{Proof of Proposition 3}
+    \small
+    First, since $t \not\sim_L v$, $\exists x, y \in \Sigma^*$ such that w.l.o.g. $x \cdot t \cdot y \in U$ and $x \cdot v \cdot y \notin U$.
+    \begin{itemize}
+        \item Find $i \in I$ such that $status_i = status_x$. Since $\mathcal{M}$ passes the equivalence query, we have $i \cdot t \cdot y \in U$ and $i \cdot v \cdot y \notin U$.
+        \item Focus on $i \cdot t$ and $i \cdot v$: find $i_1 \in I$ s.t. $status_{i_1} = status_{i \cdot t}$ and $i_2 \in I$ s.t. $status_{i_2} = status_{i \cdot v}$.
+        \item Since $i_1 \not\equiv_{status} i_2$ and separability, then 
+        
+        $\exists p\in P, s \in S. T(p \cdot i_1 \cdot s) \neq T(p \cdot i_2 \cdot s)$
+        \item Because $p$ and $s$ are elements in $P$ and $S$, so $T(p \cdot i \cdot t \cdot s) \neq T(p \cdot i \cdot v \cdot s)$.
+        \item Find $i' \in I$ s.t. $status_{i'} = status_{p \cdot i}$.  Then we have $T(i' \cdot t \cdot s) \neq T(i' \cdot v \cdot s)$.
+    \end{itemize}
+
+\end{frame}
+
+% ==================================================================
+% Slide: Practical Implementation
+% ==================================================================
+\begin{frame}{Summary and Implementation}
+    If the acceptor passes the equivalence query but fails to form a syntactic monoid:
+    \begin{enumerate}
+        \item There must exist $t \in I \cdot \Sigma$ and $v \in I$ such that $t \equiv_{status} v$ but $t \not\sim_L v$.
+        \item For such $t, v$, there must exist $i \in I, s \in S$ s.t. $T(i \cdot t \cdot s) \neq T(i \cdot v \cdot s)$.
+    \end{enumerate}
+
+    \begin{block}{Method to check Monoid Consistency}
+        \begin{itemize}
+            \item Find $t \in I \cdot \Sigma$ and $v \in I$ such that $t \equiv_{status} v$.
+            \item For such $t, v$, find $i \in I$ and $s \in S$ to do the membership query on $i \cdot t \cdot s$ and $i \cdot v \cdot s$.
+            \item If $T(i \cdot t \cdot s) \neq T(i \cdot v \cdot s)$, then \textbf{add $i$ into $P$} so that we can distinguish $t$ and $v$ to make the observation table not closed.
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Extended Process Flow
+% ------------------------------------------------------------------
+\begin{frame}{Idea -- Process}
+     \begin{columns}
+        \begin{column}{1.0\textwidth}
+            \centering
+            % 
+            \includegraphics[width=\textwidth]{Extension_process.png} 
+             \par \vspace{0.2cm} 
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: Extended Process Flow
+% ------------------------------------------------------------------
+\begin{frame}{Idea -- Process}
+\begin{enumerate}
+    \item $I := \{\epsilon\}$, $P:=\{\epsilon\}$, $S:= \{\epsilon\}$
+    \item \textbf{Closedness Check}: If $OT$ is not closed, find $i \in I\cdot\Sigma $ with new $status_i$, add to $I$. Repeat until closed.
+    \item \textbf{Equivalence Query}: Construct \textbf{Acceptor} $\mathcal{M}$ and perform query.
+    \item \textbf{Decision and Monoid Consistency Check}:
+    \begin{itemize}
+        \item If Equivalence Query is \textbf{Yes}:
+        \begin{itemize}
+            \item If \textbf{Monoid Consistency} passes $\rightarrow$ Terminate, return $\mathcal{M}$.
+            \item If \textbf{Monoid Consistency} fails $\rightarrow$ Find $i \in I$, add to $P$ (table becomes not closed).
+        \end{itemize}
+        \item If Equivalence Query is \textbf{No}:
+        \begin{itemize}
+            \item Find counterexample and add suffix $s$ to $S$ (using Rivest-Schapire).
+        \end{itemize}
+    \end{itemize}
+    \item \textbf{Loop}: Return to Step 2.
+\end{enumerate}
+\end{frame}
+
+% ==================================================================
+% Section 4: Example
+% ==================================================================
+\section{Example}
+
+
+
+% ------------------------------------------------------------------
+% Frame: Definition for Rivest-Schapire method function
+% ------------------------------------------------------------------
+
+\begin{frame}{Definition for Rivest-Schapire method}
+
+To use Rivest-Schapire method \cite{rivest1993inference}, we define a function $\mathcal{X}$ using membership query. 
+    \[
+    \mathcal{X}(w) = \begin{cases} 
+        1, & \text{if } w \in U \\ 
+        0, & \text{if } w \notin U 
+    \end{cases}
+    \]
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: step01
+% ------------------------------------------------------------------
+
+\begin{frame}{Idea -- Example}
+$$
+U = (ab)^* 
+$$ 
+
+
+\begin{center}
+    \begin{tabular}{|cc|c|}
+        \multicolumn{2}{c|}{} & $(P\times S)$ \\
+        \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ \\ \hline
+        $I$ & $\epsilon$ & 1 \\ \hline
+        $I \cdot \Sigma$ & $a$ & 0 \\
+        & $b$ & 0 \\ \hline
+    \end{tabular}
+\end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: step02
+% ------------------------------------------------------------------
+
+\begin{frame}{Idea -- Example}
+    \begin{columns}[c] 
+        
+        % 左侧：放表格
+        \begin{column}{0.5\textwidth}
+            \centering
+            \begin{tabular}{|cc|c|}
+                \multicolumn{2}{c|}{} & $(P\times S)$ \\
+                \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ \\ \hline
+                $I$ & $\epsilon$ & 1 \\ 
+                    & $a$ & 0 \\\hline
+                $I \cdot \Sigma$ & $b$ & 0 \\
+                    & $aa$ & 0 \\ 
+                    & $ab$ & 1 \\ \hline
+            \end{tabular}
+        \end{column}
+
+        % 右侧：放图片
+        \begin{column}{0.4\textwidth} 
+            \centering
+            \includegraphics[width=\textwidth]{step_02.png} 
+            \par \vspace{0.2cm} 
+            {\footnotesize $L(\mathcal{M}) = (\Sigma a^*b)^*$}
+        \end{column}
+        
+    \end{columns}
+
+    \vspace{0.8cm} % 调节这个距离来控制下方留白的大小
+
+    \begin{block}{Counterexample:$bb$ -- Rivest-Schapire method}
+    % 下方留出的写字空间
+        \begin{enumerate}
+            \item $\epsilon \equiv_{status} \epsilon$: $\mathcal{X}(\epsilon \cdot bb) = \mathcal{X}(\epsilon \cdot bb)$
+            \item $b \equiv_{status} a$: $\mathcal{X}(b \cdot b) \neq \mathcal{X}(a \cdot b)$
+        \end{enumerate}
+        \textbf{Conclusion}: The suffix $b$ is the string we are looking for to distinguish the current states.
+    \end{block}
+\end{frame}
+
+
+% ------------------------------------------------------------------
+% Frame: step03
+% ------------------------------------------------------------------
+
+\begin{frame}{Idea -- Example}
+\begin{center}
+    \begin{tabular}{|cc|c|c|} 
+        \multicolumn{2}{c|}{} & \multicolumn{2}{c|}{$(P\times S)$} \\
+        \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ & $(\epsilon,b)$ \\ \hline
+        $I$ & $\epsilon$ & 1 & 0 \\ 
+            & $a$ & 0 & 1 \\\hline
+        $I \cdot \Sigma$ & $b$ & 0 & 0 \\
+            & $aa$ & 0 & 0 \\ 
+            & $ab$ & 1 & 0 \\ \hline
+    \end{tabular}
+\end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: step04
+% ------------------------------------------------------------------
+\begin{frame}{Idea -- Example}
+% 使用 columns 环境实现左右布局
+    \begin{columns}[c] % [c] 表示垂直居中对齐，也可以用 [t] 顶部对齐
+        % 左侧：放表格
+        \begin{column}{0.5\textwidth}
+            \centering
+            \begin{tabular}{|cc|c|c|} 
+        \multicolumn{2}{c|}{} & \multicolumn{2}{c|}{$(P\times S)$} \\
+        \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ & $(\epsilon,b)$ \\ \hline
+        $I$ & $\epsilon$ & 1 & 0 \\ 
+            & $a$ & 0 & 1 \\
+            & $b$ & 0 & 0 \\ \hline
+        $I \cdot \Sigma$ 
+            & $aa$ & 0 & 0 \\ 
+            & $ab$ & 1 & 0 \\ 
+            & $ba$ & 0 & 0 \\ 
+            & $bb$ & 0 & 0 \\ \hline
+    \end{tabular}
+        \end{column}
+
+        % 右侧：放图片
+        \begin{column}{0.4\textwidth} 
+            \centering
+            \includegraphics[width=\textwidth]{step_04.png} 
+            \par \vspace{0.2cm} 
+            {\footnotesize $L(\mathcal{M}) = (ab)^*$}
+        \end{column}
+    \end{columns}
+
+    \begin{block}{Monoid consistency check}
+        \begin{enumerate}
+            \item Find status-equivalent pair $(b,aa)$, $(\epsilon,ab)$, $(b,ba)$, $(b,bb)$
+            \item $(b,aa)$: 
+                \begin{itemize}
+                    \item $\text{row}(\epsilon \cdot b) = \text{row}(\epsilon \cdot aa)$
+                    \item $\text{row}(a \cdot b) \neq \text{row}(a \cdot aa)$
+                    \item $\text{row}(b \cdot b) = \text{row}(b \cdot aa)$
+                \end{itemize} 
+        \end{enumerate}
+        \textbf{Conclusion}: The prefix $a$ is the string we are looking for.
+    \end{block}
+\end{frame}
+
+
+% ------------------------------------------------------------------
+% Frame: step05
+% ------------------------------------------------------------------
+
+\begin{frame}{Idea -- Example}
+    \begin{center}
+        \begin{tabular}{|cc|c|c|c|c|} 
+            \multicolumn{2}{c|}{} & \multicolumn{4}{c|}{$(P\times S)$} \\
+            \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ & $(\epsilon,b)$ & $(a,\epsilon)$ & $(a,b)$ \\ \hline
+            $I$ & $\epsilon$ & 1 & 0 & 0 & 1 \\ 
+                & $a$ & 0 & 1 & 0 & 0 \\
+                & $b$ & 0 & 0 & 1 & 0 \\ \hline
+            $I \cdot \Sigma$ & $aa$ & 0 & 0 & 0 & 0 \\ 
+                & $ab$ & 1 & 0 & 0 & 0 \\
+                & $ba$ & 0 & 0 & 0 & 1 \\
+                & $bb$ & 0 & 0 & 0 & 0 \\ \hline
+        \end{tabular}
+    \end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: step06
+% ------------------------------------------------------------------
+
+\begin{frame}{Idea -- Example}
+    \begin{center}
+        \begin{tabular}{|cc|c|c|c|c|} 
+    \multicolumn{2}{c|}{} & \multicolumn{4}{c|}{$(P\times S)$} \\
+    \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ & $(\epsilon,b)$ & $(a,\epsilon)$ & $(a,b)$ \\ \hline
+    $I$ & $\epsilon$ & 1 & 0 & 0 & 1 \\ 
+        & $a$        & 0 & 1 & 0 & 0 \\
+        & $b$        & 0 & 0 & 1 & 0 \\ 
+        & $aa$       & 0 & 0 & 0 & 0 \\ \hline
+    $I \cdot \Sigma$ & $ab$  & 1 & 0 & 0 & 0 \\
+        & $ba$       & 0 & 0 & 0 & 1 \\
+        & $bb$       & 0 & 0 & 0 & 0 \\ 
+        & $aaa$      & 0 & 0 & 0 & 0 \\ 
+        & $aab$      & 0 & 0 & 0 & 0 \\ \hline
+\end{tabular}
+    \end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: step07
+% ------------------------------------------------------------------
+
+\begin{frame}{Idea -- Example}
+    \begin{center}
+        \begin{tabular}{|cc|c|c|c|c|} 
+    \multicolumn{2}{c|}{} & \multicolumn{4}{c|}{$(P\times S)$} \\
+    \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ & $(\epsilon,b)$ & $(a,\epsilon)$ & $(a,b)$ \\ \hline
+    $I$ & $\epsilon$ & 1 & 0 & 0 & 1 \\ 
+        & $a$        & 0 & 1 & 0 & 0 \\
+        & $b$        & 0 & 0 & 1 & 0 \\ 
+        & $aa$       & 0 & 0 & 0 & 0 \\ 
+        & $ab$       & 1 & 0 & 0 & 0 \\ \hline
+    $I \cdot \Sigma$ & $ba$  & 0 & 0 & 0 & 1 \\
+        & $bb$       & 0 & 0 & 0 & 0 \\ 
+        & $aaa$      & 0 & 0 & 0 & 0 \\ 
+        & $aab$      & 0 & 0 & 0 & 0 \\ 
+        & $aba$      & 0 & 1 & 0 & 0 \\ 
+        & $abb$      & 0 & 0 & 0 & 0 \\ \hline
+\end{tabular}
+    \end{center}
+\end{frame}
+
+% ------------------------------------------------------------------
+% Frame: step08
+% ------------------------------------------------------------------
+\begin{frame}{Idea -- Example}
+    \begin{columns}[c] 
+        % 左侧：放表格
+        \begin{column}{0.45\textwidth} % 稍微调大点列宽比例
+            \centering
+            % 1. 缩小字体 (footnotesize 或 scriptsize)
+            \scriptsize 
+            % 2. 压缩列间距 (默认是6pt，改为2pt)
+            \setlength{\tabcolsep}{2pt} 
+            % 3. 稍微压缩行高，让表格别太长
+            \renewcommand{\arraystretch}{0.95}
+
+            \begin{tabular}{|cc|c|c|c|c|} 
+                \multicolumn{2}{c|}{} & \multicolumn{4}{c|}{$(P\times S)$} \\
+                \multicolumn{2}{c|}{} & $(\epsilon,\epsilon)$ & $(\epsilon,b)$ & $(a,\epsilon)$ & $(a,b)$ \\ \hline
+                $I$ & $\epsilon$ & 1 & 0 & 0 & 1 \\ 
+                    & $a$        & 0 & 1 & 0 & 0 \\
+                    & $b$        & 0 & 0 & 1 & 0 \\ 
+                    & $aa$       & 0 & 0 & 0 & 0 \\ 
+                    & $ab$       & 1 & 0 & 0 & 0 \\ 
+                    & $ba$       & 0 & 0 & 0 & 1 \\ \hline
+                $I \cdot \Sigma$ & $bb$  & 0 & 0 & 0 & 0 \\
+                    & $aaa$      & 0 & 0 & 0 & 0 \\ 
+                    & $aab$      & 0 & 0 & 0 & 0 \\ 
+                    & $aba$      & 0 & 1 & 0 & 0 \\ 
+                    & $abb$      & 0 & 0 & 0 & 0 \\ 
+                    & $baa$      & 0 & 0 & 0 & 0 \\ 
+                    & $bab$      & 0 & 0 & 1 & 0 \\ \hline
+            \end{tabular}
+        \end{column}
+
+        % 右侧：放图片
+        \begin{column}{0.5\textwidth} 
+            \centering
+            \includegraphics[width=\textwidth]{step_08.png} 
+            \par \vspace{0.2cm} 
+            {\footnotesize $L(\mathcal{M}) = (ab)^*$}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% ==================================================================
+% Section 5: Future Work
+% ==================================================================
+\section{Future work}
+
+% ------------------------------------------------------------------
+% Frame: Future Tasks
+% ------------------------------------------------------------------
+\begin{frame}{Future work}
+    \begin{block}{Summary}
+        \begin{itemize}
+            \item Extended the observation table and define the \textbf{Monoid Consistency}. 
+            \item Proved that any Acceptor passing the Equivalence Query but failing to be a true Syntactic Monoid inevitably violates monoid consistency.
+            \item Proved the correctness of this extended algorithm.
+        \end{itemize}
+    \end{block}
+    \begin{block}{Improvement and implementation}
+        \begin{itemize}
+            \item Theoretically calculate the time complexity.
+            \item Implement the algorithm and compare the efficiency with the traditional method. 
+            \item Reduce useless information during the process to improve computational cost. 
+        \end{itemize}
+    \end{block}
+\end{frame}
+
+% ==================================================================
+% References
+% ==================================================================
+\begin{frame}[allowframebreaks] 
+    \frametitle{References}
+    
+    \bibliographystyle{IEEEtran}
+    \bibliography{reference} 
+\end{frame}
+
+\end{document}
